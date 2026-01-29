@@ -1,0 +1,4 @@
+## 2024-10-24 - Custom HTML Sanitizer Weaknesses
+**Vulnerability:** The custom `sanitizeHTML` function in `src/modding/UIAPI.ts` was vulnerable to XSS bypasses using control characters (e.g., `java\tscript:`), alternative protocols (`vbscript:`, `data:`), and unmonitored attributes (`formaction`).
+**Learning:** Custom sanitizer implementations often overlook browser normalization behaviors (like ignoring whitespace in protocols) and fail to blacklist all dangerous tags (like `base` or `form`).
+**Prevention:** Use a robust sanitization library like DOMPurify when possible. If a custom sanitizer is required, ensure it normalizes input (removes whitespace/control chars) before checking against a comprehensive blocklist of protocols and attributes, or better yet, use a strict allowlist of safe tags and attributes.

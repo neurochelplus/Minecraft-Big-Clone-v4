@@ -94,20 +94,40 @@ export class UIAPI implements UIAPIInterface {
     div.innerHTML = html;
 
     // Удалить опасные теги
-    const dangerous = div.querySelectorAll('script, style, iframe, object, embed, link, meta');
+    const dangerous = div.querySelectorAll('script, style, iframe, object, embed, link, meta, base, form');
     dangerous.forEach((el) => el.remove());
 
-    // Удалить on* атрибуты и javascript: ссылки
+    // Удалить on* атрибуты и опасные протоколы (javascript:, vbscript:, data:, file:)
     const allElements = div.querySelectorAll('*');
     allElements.forEach((el) => {
       const attrs = [...el.attributes];
       attrs.forEach((attr) => {
-        if (
-          attr.name.startsWith('on') ||
-          (attr.name === 'href' && attr.value.toLowerCase().startsWith('javascript:')) ||
-          (attr.name === 'src' && attr.value.toLowerCase().startsWith('javascript:'))
-        ) {
+        const name = attr.name.toLowerCase();
+
+        // Удалить обработчики событий (on*)
+        if (name.startsWith('on')) {
           el.removeAttribute(attr.name);
+          return;
+        }
+
+        // Проверка атрибутов, которые могут содержать URL
+        // Мы проверяем стандартные URL атрибуты и любые, содержащие 'href' (для svg xlink:href)
+        if (
+          ['href', 'src', 'action', 'formaction', 'data', 'cite', 'poster', 'background', 'longdesc', 'usemap'].includes(name) ||
+          name.includes('href')
+        ) {
+          // Нормализация значения: удаление пробелов и управляющих символов для проверки
+          // Это предотвращает обход вида "java script:" или "java\tscript:"
+          const value = attr.value.toLowerCase().replace(/[\s\x00-\x1F]+/g, '');
+
+          if (
+            value.startsWith('javascript:') ||
+            value.startsWith('vbscript:') ||
+            value.startsWith('data:') ||
+            value.startsWith('file:')
+          ) {
+            el.removeAttribute(attr.name);
+          }
         }
       });
     });
