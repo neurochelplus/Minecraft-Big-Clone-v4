@@ -94,18 +94,27 @@ export class UIAPI implements UIAPIInterface {
     div.innerHTML = html;
 
     // Удалить опасные теги
-    const dangerous = div.querySelectorAll('script, style, iframe, object, embed, link, meta');
+    const dangerous = div.querySelectorAll(
+      'script, style, iframe, object, embed, link, meta, base, form, svg, math, details, xml, applet'
+    );
     dangerous.forEach((el) => el.remove());
 
-    // Удалить on* атрибуты и javascript: ссылки
+    // Удалить on* атрибуты и опасные протоколы
     const allElements = div.querySelectorAll('*');
     allElements.forEach((el) => {
       const attrs = [...el.attributes];
       attrs.forEach((attr) => {
+        const name = attr.name.toLowerCase();
+        const normalizedValue = attr.value.toLowerCase().replace(/[\s\x00-\x1f]+/g, '');
+
         if (
-          attr.name.startsWith('on') ||
-          (attr.name === 'href' && attr.value.toLowerCase().startsWith('javascript:')) ||
-          (attr.name === 'src' && attr.value.toLowerCase().startsWith('javascript:'))
+          name.startsWith('on') ||
+          name === 'style' ||
+          ((name === 'href' || name === 'src' || name === 'action' || name === 'formaction') &&
+            (normalizedValue.startsWith('javascript:') ||
+              normalizedValue.startsWith('vbscript:') ||
+              normalizedValue.startsWith('data:') ||
+              normalizedValue.startsWith('file:')))
         ) {
           el.removeAttribute(attr.name);
         }
