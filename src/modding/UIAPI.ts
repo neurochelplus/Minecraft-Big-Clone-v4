@@ -94,20 +94,53 @@ export class UIAPI implements UIAPIInterface {
     div.innerHTML = html;
 
     // Удалить опасные теги
-    const dangerous = div.querySelectorAll('script, style, iframe, object, embed, link, meta');
+    const dangerousTags = [
+      'script',
+      'style',
+      'iframe',
+      'object',
+      'embed',
+      'link',
+      'meta',
+      'base',
+      'form',
+      'svg',
+      'math',
+      'details',
+      'applet',
+      'frame',
+      'frameset',
+      'layer',
+    ];
+    const dangerous = div.querySelectorAll(dangerousTags.join(', '));
     dangerous.forEach((el) => el.remove());
 
-    // Удалить on* атрибуты и javascript: ссылки
+    // Удалить on* атрибуты и опасные протоколы
     const allElements = div.querySelectorAll('*');
     allElements.forEach((el) => {
       const attrs = [...el.attributes];
       attrs.forEach((attr) => {
-        if (
-          attr.name.startsWith('on') ||
-          (attr.name === 'href' && attr.value.toLowerCase().startsWith('javascript:')) ||
-          (attr.name === 'src' && attr.value.toLowerCase().startsWith('javascript:'))
-        ) {
+        const name = attr.name.toLowerCase();
+        // Нормализация значения для проверки протокола (удаление пробелов и управляющих символов)
+        const value = attr.value.replace(/[\x00-\x1F\s]+/g, '').toLowerCase();
+
+        // 1. Event handlers (on*)
+        // 2. Form actions
+        if (name.startsWith('on') || name === 'action' || name === 'formaction') {
           el.removeAttribute(attr.name);
+          return;
+        }
+
+        // 3. Опасные протоколы в URL атрибутах
+        if (name === 'href' || name === 'src' || name === 'data') {
+          if (
+            value.startsWith('javascript:') ||
+            value.startsWith('vbscript:') ||
+            value.startsWith('data:') ||
+            value.startsWith('file:')
+          ) {
+            el.removeAttribute(attr.name);
+          }
         }
       });
     });
