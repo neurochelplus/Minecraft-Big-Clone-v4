@@ -1,0 +1,4 @@
+## 2024-05-23 - [XSS] Robust HTML Sanitization in UIAPI
+**Vulnerability:** The `UIAPI.ts` module had an incomplete HTML sanitization implementation. It missed several dangerous tags (`form`, `base`, `svg`, etc.) and protocols (`data:`, `vbscript:`, `file:`), and did not validate `action` or `formaction` attributes. This allowed mods (or compromised mods) to inject malicious scripts into the game UI via XSS vectors.
+**Learning:** Manual HTML sanitization is error-prone. Standard deny-lists often miss obscure vectors (like `base` tag injection or `formaction`). Normalizing input (stripping control characters) is crucial before validation to prevent bypasses.
+**Prevention:** Always use a defense-in-depth approach for sanitization. Ideally, use a proven library like DOMPurify, but if dependencies are restricted, ensure the deny-list is comprehensive and covers all dangerous protocols and attributes. Always test with known XSS payloads.

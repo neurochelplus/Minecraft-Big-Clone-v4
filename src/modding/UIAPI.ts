@@ -94,7 +94,14 @@ export class UIAPI implements UIAPIInterface {
     div.innerHTML = html;
 
     // Удалить опасные теги
-    const dangerous = div.querySelectorAll('script, style, iframe, object, embed, link, meta');
+    const dangerousTags = [
+      'script', 'style', 'iframe', 'object', 'embed', 'link', 'meta',
+      'base', 'form', 'svg', 'math', 'details', 'applet', 'frame',
+      'frameset', 'layer'
+    ];
+
+    // Используем запятую для объединения селекторов
+    const dangerous = div.querySelectorAll(dangerousTags.join(', '));
     dangerous.forEach((el) => el.remove());
 
     // Удалить on* атрибуты и javascript: ссылки
@@ -102,12 +109,28 @@ export class UIAPI implements UIAPIInterface {
     allElements.forEach((el) => {
       const attrs = [...el.attributes];
       attrs.forEach((attr) => {
-        if (
-          attr.name.startsWith('on') ||
-          (attr.name === 'href' && attr.value.toLowerCase().startsWith('javascript:')) ||
-          (attr.name === 'src' && attr.value.toLowerCase().startsWith('javascript:'))
-        ) {
+        const name = attr.name.toLowerCase();
+        // Нормализация значения: удаляем пробелы и контрольные символы для проверки
+        // eslint-disable-next-line no-control-regex
+        const normalizedValue = attr.value.toLowerCase().replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim();
+
+        // 1. Удаляем обработчики событий (on*)
+        if (name.startsWith('on')) {
           el.removeAttribute(attr.name);
+          return;
+        }
+
+        // 2. Проверяем опасные протоколы в атрибутах URL
+        const protocolAttributes = ['href', 'src', 'action', 'formaction', 'data'];
+        if (protocolAttributes.includes(name)) {
+          if (
+            normalizedValue.startsWith('javascript:') ||
+            normalizedValue.startsWith('vbscript:') ||
+            normalizedValue.startsWith('data:') ||
+            normalizedValue.startsWith('file:')
+          ) {
+            el.removeAttribute(attr.name);
+          }
         }
       });
     });
