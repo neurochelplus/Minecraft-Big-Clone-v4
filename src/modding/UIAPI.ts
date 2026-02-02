@@ -93,19 +93,35 @@ export class UIAPI implements UIAPIInterface {
     const div = document.createElement('div');
     div.innerHTML = html;
 
-    // Удалить опасные теги
-    const dangerous = div.querySelectorAll('script, style, iframe, object, embed, link, meta');
-    dangerous.forEach((el) => el.remove());
+    // Удалить опасные теги (Expanded list)
+    const dangerousTags = [
+      'script', 'style', 'iframe', 'object', 'embed', 'link', 'meta',
+      'form', 'svg', 'math', 'details', 'base', 'applet',
+    ];
+    dangerousTags.forEach((tag) => {
+      div.querySelectorAll(tag).forEach((el) => el.remove());
+    });
 
-    // Удалить on* атрибуты и javascript: ссылки
+    // Dangerous attributes to strip explicitly
+    const dangerousAttrs = ['action', 'formaction', 'data'];
+
+    // Удалить on* атрибуты и опасные протоколы
     const allElements = div.querySelectorAll('*');
     allElements.forEach((el) => {
       const attrs = [...el.attributes];
       attrs.forEach((attr) => {
+        const name = attr.name.toLowerCase();
+        // Remove whitespace for protocol checks (prevents "java script:")
+        const val = attr.value.toLowerCase().replace(/[\s\x00-\x1f]/g, '');
+
         if (
-          attr.name.startsWith('on') ||
-          (attr.name === 'href' && attr.value.toLowerCase().startsWith('javascript:')) ||
-          (attr.name === 'src' && attr.value.toLowerCase().startsWith('javascript:'))
+          name.startsWith('on') ||
+          dangerousAttrs.includes(name) ||
+          ((name === 'href' || name === 'src') &&
+            (val.startsWith('javascript:') ||
+              val.startsWith('vbscript:') ||
+              val.startsWith('data:') ||
+              val.startsWith('file:')))
         ) {
           el.removeAttribute(attr.name);
         }
