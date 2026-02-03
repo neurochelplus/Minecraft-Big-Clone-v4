@@ -94,7 +94,22 @@ export class UIAPI implements UIAPIInterface {
     div.innerHTML = html;
 
     // Удалить опасные теги
-    const dangerous = div.querySelectorAll('script, style, iframe, object, embed, link, meta');
+    const dangerousTags = [
+      'script',
+      'style',
+      'iframe',
+      'object',
+      'embed',
+      'link',
+      'meta',
+      'svg',
+      'form',
+      'base',
+      'applet',
+      'math',
+      'details',
+    ];
+    const dangerous = div.querySelectorAll(dangerousTags.join(', '));
     dangerous.forEach((el) => el.remove());
 
     // Удалить on* атрибуты и javascript: ссылки
@@ -102,12 +117,27 @@ export class UIAPI implements UIAPIInterface {
     allElements.forEach((el) => {
       const attrs = [...el.attributes];
       attrs.forEach((attr) => {
-        if (
-          attr.name.startsWith('on') ||
-          (attr.name === 'href' && attr.value.toLowerCase().startsWith('javascript:')) ||
-          (attr.name === 'src' && attr.value.toLowerCase().startsWith('javascript:'))
-        ) {
+        const name = attr.name.toLowerCase();
+
+        // 1. Блокировка обработчиков событий и опасных атрибутов
+        if (name.startsWith('on') || name === 'action' || name === 'formaction') {
           el.removeAttribute(attr.name);
+          return;
+        }
+
+        // 2. Проверка протоколов в URL атрибутах
+        if (name === 'href' || name === 'src') {
+          // Нормализация: удаление управляющих символов и пробелов для проверки
+          const normalizedValue = attr.value.replace(/[\x00-\x20\xA0]/g, '').toLowerCase();
+
+          if (
+            normalizedValue.startsWith('javascript:') ||
+            normalizedValue.startsWith('vbscript:') ||
+            normalizedValue.startsWith('data:') ||
+            normalizedValue.startsWith('file:')
+          ) {
+            el.removeAttribute(attr.name);
+          }
         }
       });
     });
