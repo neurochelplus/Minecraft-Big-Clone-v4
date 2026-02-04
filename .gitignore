@@ -30,3 +30,6 @@ yarn-error.log*
 # Системные файлы
 DS_Store
 thumbs.db
+
+# Codex planning files
+.codex-planning/
