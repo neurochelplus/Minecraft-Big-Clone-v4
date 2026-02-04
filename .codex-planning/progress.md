@@ -13,6 +13,8 @@
 - Created per-section research files under `.codex-planning/sections`.
 - Verified latest commit contains only test setup files.
 - Preparing snapshot commit of current local state (including ignored files if required).
+- Detected merge in progress after VSCode push attempt; gathered branch/remote info.
+- Aborted merge to remove downloaded changes.
 
 ### Test Results
 | Test | Expected | Actual | Status |
@@ -25,3 +27,4 @@
 |-------|------------|
 | Typecheck failed (TS2339, TS6133, TS2345) | Pending decision on how to handle existing type issues. |
 | `src/world/World.backup.ts` missing | Skipped file; analysis continues on existing sources. |
+| Merge in progress after VSCode push attempt | Conflicts in `.gitignore`, `package.json`, `package-lock.json` require decision. |

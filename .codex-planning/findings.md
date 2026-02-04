@@ -17,6 +17,10 @@
 - `tsconfig.json` is strict with `noEmit: true`.
 - `.gitignore` change adds `.codex-planning/` (not test-related).
 - `.codex-planning` is ignored and requires force-add to commit.
+- Merge in progress; conflicts in `.gitignore`, `package.json`, `package-lock.json`.
+- Current branch: `perf/web-workers-optimization`.
+- Commit `1eec957` exists locally.
+- Remotes: `origin` -> `github.com/pradigmaz/QubeForge.git`, `neurochelplus` and `upstream` -> `github.com/neurochelplus/QubeForge.git`.
 
 ## Technical Decisions
 
