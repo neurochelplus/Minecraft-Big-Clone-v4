@@ -1,14 +1,14 @@
-import { CraftingSystem } from "./CraftingSystem";
+import type { ICrafting } from "../contracts/crafting";
 import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { getBlockColor } from "../utils/BlockColors";
 
 export class CraftingResultRenderer {
-  private craftingSystem: CraftingSystem;
+  private craftingSystem: ICrafting;
   private resultIcon: HTMLElement;
   private resultCount: HTMLElement;
 
   constructor(
-    craftingSystem: CraftingSystem,
+    craftingSystem: ICrafting,
     resultIcon: HTMLElement,
     resultCount: HTMLElement,
   ) {

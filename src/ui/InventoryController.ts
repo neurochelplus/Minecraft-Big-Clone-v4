@@ -1,30 +1,51 @@
-import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
-import { Player } from "../player/Player";
-import { World } from "../world/World";
-import { Inventory } from "../inventory/Inventory";
-import { InventoryUI } from "../inventory/InventoryUI";
-import { DragDrop } from "../inventory/DragDrop";
-import { CraftingSystem } from "../crafting/CraftingSystem";
-import { CraftingUI } from "../crafting/CraftingUI";
-import { FurnaceUI } from "../crafting/FurnaceUI";
-import { FurnaceManager } from "../crafting/FurnaceManager";
+import type { IControls } from "../contracts/controls";
+import type { IPlayerInput } from "../contracts/player";
+import type { IWorld } from "../contracts/world";
+import type { IInventory } from "../contracts/inventory";
+import type { IInventoryUI, IDragDrop, ICraftingUI, IFurnaceUI } from "../contracts/ui";
+import type { ICrafting, IFurnaceManager } from "../contracts/crafting";
 
 /**
  * Controls inventory menu opening/closing and related UI state
  */
 export class InventoryController {
   constructor(
-    private controls: PointerLockControls,
-    private player: Player,
-    private world: World,
-    private inventory: Inventory,
-    private inventoryUI: InventoryUI,
-    private dragDrop: DragDrop,
-    private craftingSystem: CraftingSystem,
-    private craftingUI: CraftingUI,
-    private furnaceUI: FurnaceUI,
-    private isMobile: boolean,
-  ) {}
+    controls: IControls,
+    player: IPlayerInput,
+    world: IWorld,
+    inventory: IInventory,
+    inventoryUI: IInventoryUI,
+    dragDrop: IDragDrop,
+    craftingSystem: ICrafting,
+    craftingUI: ICraftingUI,
+    furnaceUI: IFurnaceUI,
+    furnaceManager: IFurnaceManager,
+    isMobile: boolean,
+  ) {
+    this.controls = controls;
+    this.player = player;
+    this.world = world;
+    this.inventory = inventory;
+    this.inventoryUI = inventoryUI;
+    this.dragDrop = dragDrop;
+    this.craftingSystem = craftingSystem;
+    this.craftingUI = craftingUI;
+    this.furnaceUI = furnaceUI;
+    this.furnaceManager = furnaceManager;
+    this.isMobile = isMobile;
+  }
+
+  private controls: IControls;
+  private player: IPlayerInput;
+  private world: IWorld;
+  private inventory: IInventory;
+  private inventoryUI: IInventoryUI;
+  private dragDrop: IDragDrop;
+  private craftingSystem: ICrafting;
+  private craftingUI: ICraftingUI;
+  private furnaceUI: IFurnaceUI;
+  private furnaceManager: IFurnaceManager;
+  private isMobile: boolean;
 
   /**
    * Toggle inventory menu
@@ -46,8 +67,6 @@ export class InventoryController {
       const useCraftingTable = param === true;
       const useFurnace = param === "furnace";
 
-      this.controls.unlock();
-
       // Stop Movement
       this.player.physics.moveForward = false;
       this.player.physics.moveBackward = false;
@@ -57,6 +76,9 @@ export class InventoryController {
 
       inventoryMenu.style.display = "flex";
       crosshair.style.display = "none";
+
+      // Unlock after inventory is visible to prevent pause menu from opening.
+      this.controls.unlock();
 
       if (useFurnace && furnacePos) {
         this.furnaceUI.open(furnacePos.x, furnacePos.y, furnacePos.z);
@@ -91,7 +113,7 @@ export class InventoryController {
         position: this.controls.object.position,
         inventory: this.inventory.serialize(),
       });
-      FurnaceManager.getInstance().save();
+      this.furnaceManager.save();
 
       // Return items from crafting grid
       this.craftingSystem.consumeIngredients();

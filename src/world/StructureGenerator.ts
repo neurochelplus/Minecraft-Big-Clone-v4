@@ -2,7 +2,11 @@ import { BLOCK } from "../constants/Blocks";
 import { TerrainGenerator } from "./TerrainGenerator";
 
 export class StructureGenerator {
-  constructor(private terrainGen: TerrainGenerator) {}
+  private terrainGen: TerrainGenerator;
+
+  constructor(terrainGen: TerrainGenerator) {
+    this.terrainGen = terrainGen;
+  }
 
   public generateTrees(
     data: Uint8Array,
@@ -12,7 +16,13 @@ export class StructureGenerator {
   ) {
     for (let x = 2; x < chunkSize - 2; x++) {
       for (let z = 2; z < chunkSize - 2; z++) {
-        const height = this.findSurfaceHeight(data, chunkSize, chunkHeight, x, z, getBlockIndex);
+        const height = this.findSurfaceHeight(
+          data,
+          chunkHeight,
+          x,
+          z,
+          getBlockIndex,
+        );
         if (height > 0) {
           const index = getBlockIndex(x, height, z);
           if (data[index] === BLOCK.GRASS && Math.random() < 0.01) {
@@ -25,7 +35,6 @@ export class StructureGenerator {
 
   private findSurfaceHeight(
     data: Uint8Array,
-    chunkSize: number,
     chunkHeight: number,
     x: number,
     z: number,

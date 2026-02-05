@@ -4,6 +4,7 @@ import { TerrainGenerator } from "./TerrainGenerator";
 import { StructureGenerator } from "./StructureGenerator";
 import { ChunkMeshBuilder } from "./ChunkMeshBuilder";
 import { ChunkPersistence } from "./ChunkPersistence";
+import type { IFurnaceManager } from "../contracts/crafting";
 
 type Chunk = {
   mesh: THREE.Mesh;
@@ -23,11 +24,11 @@ export class ChunkManager {
   private meshBuilder: ChunkMeshBuilder;
   private persistence: ChunkPersistence;
 
-  constructor(scene: THREE.Scene, seed?: number) {
+  constructor(scene: THREE.Scene, seed?: number, furnaceManager?: IFurnaceManager) {
     this.scene = scene;
     this.terrainGen = new TerrainGenerator(seed);
     this.structureGen = new StructureGenerator(this.terrainGen);
-    this.meshBuilder = new ChunkMeshBuilder();
+    this.meshBuilder = new ChunkMeshBuilder(furnaceManager);
     this.persistence = new ChunkPersistence();
   }
 

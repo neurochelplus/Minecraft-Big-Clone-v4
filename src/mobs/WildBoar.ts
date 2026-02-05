@@ -1,6 +1,6 @@
-import * as THREE from "three";
+﻿import * as THREE from "three";
 import { Mob, MobState } from "./Mob";
-import { World } from "../world/World";
+import type { IWorld } from "../contracts/world";
 
 export class WildBoar extends Mob {
   protected readonly walkSpeed: number = 1.5;
@@ -33,10 +33,9 @@ export class WildBoar extends Mob {
   private alertTimer = 0;
   private fleeTimer = 0;
   private eatTimer = 0;
-  private isEating = false;
 
   constructor(
-    world: World,
+    world: IWorld,
     scene: THREE.Scene,
     x: number,
     y: number,
@@ -118,72 +117,35 @@ export class WildBoar extends Mob {
     // For simple "look at" animations, head group is better. But here we just have procedural body anims.
     // Let's attach snout and tusks to head mesh if we want head rotation? 
     // Currently Mob structure is flat hierarchy in constructor mostly.
-    // Let's make Head a Group if we want to rotate it.
-    // For now, simple structure:
-    this.mesh.add(this.snout); // Add to main mesh for now, but position carefully.
 
-    // 5. Tusks
-    // Protruding from snout sides/bottom.
-    // Snout Y=0.65. Tusks should be slightly lower/upwards.
-    // createBox sets Y, but position.set overwrites it. We must specify Y manually in set().
-    this.leftTusk = this.createBox(0.04, 0.12, 0.04, tuskColor, 0, texture);
-    this.leftTusk.position.set(-0.1, 0.65, 0.8);
+    this.mesh.add(this.snout);
+
+    // Tusks
+    this.leftTusk = this.createBox(0.05, 0.1, 0.05, tuskColor, 0.65, texture);
+    this.leftTusk.position.set(-0.08, 0.65, 0.9);
     this.mesh.add(this.leftTusk);
 
-    this.rightTusk = this.createBox(0.04, 0.12, 0.04, tuskColor, 0, texture);
-    this.rightTusk.position.set(0.1, 0.65, 0.8);
+    this.rightTusk = this.createBox(0.05, 0.1, 0.05, tuskColor, 0.65, texture);
+    this.rightTusk.position.set(0.08, 0.65, 0.9);
     this.mesh.add(this.rightTusk);
 
-    // 6. Eyes
-    // Head Y center=0.7. Eyes higher.
-    this.leftEye = this.createBox(0.05, 0.05, 0.02, eyeColor, 0, texture);
-    this.leftEye.position.set(-0.15, 0.8, 0.85); // Front of head
-    this.mesh.add(this.leftEye);
-
-    this.rightEye = this.createBox(0.05, 0.05, 0.02, eyeColor, 0, texture);
-    this.rightEye.position.set(0.15, 0.8, 0.85);
-    this.mesh.add(this.rightEye);
-
-    // 7. Ears
-    // Top of head Y=0.9
-    this.leftEar = this.createBox(0.1, 0.1, 0.05, earColor, 0, texture);
-    this.leftEar.position.set(-0.2, 0.85, 0.7);
+    // Ears
+    this.leftEar = this.createBox(0.1, 0.1, 0.05, earColor, 0.85, texture);
+    this.leftEar.position.set(-0.15, 0.85, 0.5);
     this.mesh.add(this.leftEar);
 
-    this.rightEar = this.createBox(0.1, 0.1, 0.05, earColor, 0, texture);
-    this.rightEar.position.set(0.2, 0.85, 0.7);
+    this.rightEar = this.createBox(0.1, 0.1, 0.05, earColor, 0.85, texture);
+    this.rightEar.position.set(0.15, 0.85, 0.5);
     this.mesh.add(this.rightEar);
-    
-    // Fix UVs
-    const fixUVs = (mesh: THREE.Mesh) => {
-      const uvAttr = mesh.geometry.getAttribute("uv");
-      if (!uvAttr) return;
-      const uvScale = 1.0 / 12.0;
-      for (let i = 0; i < uvAttr.count; i++) {
-        let u = uvAttr.getX(i);
-        u = u * uvScale;
-        uvAttr.setX(i, u);
-      }
-      uvAttr.needsUpdate = true;
-    };
 
-    [
-        this.legFL, this.legFR, this.legBL, this.legBR,
-        this.body, this.head, this.snout,
-        this.leftTusk, this.rightTusk,
-        this.leftEye, this.rightEye,
-        this.leftEar, this.rightEar
-    ].forEach(m => fixUVs(m));
-  }
+    // Eyes
+    this.leftEye = this.createBox(0.05, 0.05, 0.05, eyeColor, 0.75, texture);
+    this.leftEye.position.set(-0.1, 0.75, 0.85);
+    this.mesh.add(this.leftEye);
 
-  // Override takeDamage to trigger Flee
-  public takeDamage(amount: number, attackerPos: THREE.Vector3 | null) {
-      super.takeDamage(amount, attackerPos);
-      if (!this.isDead) {
-          this.state = MobState.FLEE;
-          this.fleeTimer = 4.0; // Run for 4 seconds
-          this.isEating = false;
-      }
+    this.rightEye = this.createBox(0.05, 0.05, 0.05, eyeColor, 0.75, texture);
+    this.rightEye.position.set(0.1, 0.75, 0.85);
+    this.mesh.add(this.rightEye);
   }
 
   protected updateAI(
@@ -192,229 +154,53 @@ export class WildBoar extends Mob {
     onAttack?: (damage: number) => void,
     isDay?: boolean,
   ) {
-    const time = performance.now() / 1000;
-    
-    // --- Behavior Logic ---
-    
+    if (this.isDead) return;
+
     const distToPlayer = playerPos ? this.mesh.position.distanceTo(playerPos) : Infinity;
 
-    // State Transitions
     switch (this.state) {
-        case MobState.IDLE:
-            // Randomly eat
-            if (!this.isEating && Math.random() < 0.005) {
-                this.isEating = true;
-                this.eatTimer = 2.0;
-            }
-            
-            if (this.isEating) {
-                this.eatTimer -= delta;
-                if (this.eatTimer <= 0) this.isEating = false;
-                // Stop moving while eating
-                this.velocity.x = 0;
-                this.velocity.z = 0;
-            } else {
-                // Normal wander logic from base class
-                super.updateAI(delta, playerPos, onAttack, isDay);
-            }
-
-            // Transition to Alert
-            if (distToPlayer < this.detectionRadius) {
-                this.state = MobState.ALERT;
-                this.alertTimer = 1.5; // Alert duration
-                this.isEating = false;
-                this.velocity.x = 0;
-                this.velocity.z = 0;
-                
-                // Face player
-                if (playerPos) {
-                    const dx = playerPos.x - this.mesh.position.x;
-                    const dz = playerPos.z - this.mesh.position.z;
-                    this.mesh.rotation.y = Math.atan2(dx, dz);
-                }
-            }
-            break;
-
-        case MobState.WANDER:
-             // Check Alert
-             if (distToPlayer < this.detectionRadius) {
-                this.state = MobState.ALERT;
-                this.alertTimer = 1.5;
-                this.velocity.x = 0;
-                this.velocity.z = 0;
-                if (playerPos) {
-                    const dx = playerPos.x - this.mesh.position.x;
-                    const dz = playerPos.z - this.mesh.position.z;
-                    this.mesh.rotation.y = Math.atan2(dx, dz);
-                }
-             } else {
-                 super.updateAI(delta, playerPos, onAttack, isDay);
-             }
-             break;
-
-        case MobState.ALERT:
-            this.alertTimer -= delta;
-            // Face player continuously? No, just initial stare or tracking.
-            if (playerPos) {
-                 const dx = playerPos.x - this.mesh.position.x;
-                 const dz = playerPos.z - this.mesh.position.z;
-                 // Smooth turn to player
-                 const targetAngle = Math.atan2(dx, dz);
-                 let angleDiff = targetAngle - this.mesh.rotation.y;
-                 // Normalize angle
-                 while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                 while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                 this.mesh.rotation.y += angleDiff * delta * 5;
-            }
-
-            // Removed distance-based fleeing. Only flee on damage.
-            if (this.alertTimer <= 0) {
-                // False alarm or player stayed away
-                this.state = MobState.IDLE;
-            }
-            break;
-
-        case MobState.FLEE:
-            this.fleeTimer -= delta;
-            
-            if (playerPos) {
-                // Run away from player
-                const dx = this.mesh.position.x - playerPos.x; // Vector FROM player
-                const dz = this.mesh.position.z - playerPos.z;
-                const angle = Math.atan2(dx, dz);
-                
-                // Run straight away (no jitter)
-                this.mesh.rotation.y = angle;
-                this.velocity.x = Math.sin(this.mesh.rotation.y) * this.runSpeed;
-                this.velocity.z = Math.cos(this.mesh.rotation.y) * this.runSpeed;
-            }
-
-            if (this.fleeTimer <= 0 || distToPlayer > 20) {
-                this.state = MobState.IDLE;
-                this.velocity.x = 0;
-                this.velocity.z = 0;
-            }
-            break;
-    }
-
-    // --- Animation ---
-    const isMoving = this.velocity.lengthSq() > 0.1;
-    
-    // Reset rotations
-    this.head.rotation.x = 0;
-    this.snout.rotation.x = 0;
-    
-    // Sync head parts (since they are not in a group, we manually animate them if head rotates)
-    // For now, only head bobbing in Eat animation uses direct rotation.
-    // If we want robust head rotation, we should have used a Group.
-    // Let's reset their relative positions/rotations just in case.
-    
-    // Helper to sync part to head if head rotates
-    // Since head rotation is simple X rotation around center (0, 0.7, 0.65)...
-    // Actually, createBox makes mesh centered at 0,0,0 and offset by Y.
-    // this.head.position.z = 0.65. Y is handled by geometry offset? No, createBox sets mesh.position.y.
-    // So head mesh position is (0, 0.7, 0.65).
-    // Rotation is around (0, 0.7, 0.65).
-    
-    // For simple visual consistency, let's just make the "Eat" animation move everything together
-    // or keep it subtle.
-    
-    const baseHeadY = 0.7;
-    const baseHeadZ = 0.65;
-    
-    // Reset parts to base positions
-    this.snout.position.set(0, 0.65, 0.85);
-    this.leftTusk.position.set(-0.1, 0.65, 0.8);
-    this.rightTusk.position.set(0.1, 0.65, 0.8);
-    this.leftEye.position.set(-0.15, 0.8, 0.85);
-    this.rightEye.position.set(0.15, 0.8, 0.85);
-    this.leftEar.position.set(-0.2, 0.85, 0.7);
-    this.rightEar.position.set(0.2, 0.85, 0.7);
-
-    // Apply Head Rotation/Offset
-    if (this.isEating) {
-        // Bob head down
-        const bob = Math.sin(time * 15) * 0.1;
-        const headAngle = 0.3 + bob;
-        
-        this.head.rotation.x = headAngle;
-        
-        // We need to rotate attached parts around head pivot (0, 0.7, 0.65)
-        // Simple approximation: lower them and move back slightly
-        const cos = Math.cos(headAngle);
-        const sin = Math.sin(headAngle);
-        
-        const rotatePoint = (p: THREE.Vector3) => {
-            // Relative to head center
-            let ry = p.y - baseHeadY;
-            let rz = p.z - baseHeadZ;
-            
-            // Rotate around X
-            let ny = ry * cos - rz * sin;
-            let nz = ry * sin + rz * cos;
-            
-            p.y = baseHeadY + ny;
-            p.z = baseHeadZ + nz;
-        };
-
-        rotatePoint(this.snout.position);
-        rotatePoint(this.leftTusk.position);
-        rotatePoint(this.rightTusk.position);
-        rotatePoint(this.leftEye.position);
-        rotatePoint(this.rightEye.position);
-        rotatePoint(this.leftEar.position);
-        rotatePoint(this.rightEar.position);
-    } else {
-        this.head.rotation.x = 0;
-    }
-
-    if (this.state === MobState.FLEE) {
-        // Run Animation
-        const speed = 15;
-        const angle = time * speed;
-        
-        this.legFLGroup.rotation.x = Math.sin(angle) * 0.8;
-        this.legFRGroup.rotation.x = Math.cos(angle) * 0.8;
-        this.legBLGroup.rotation.x = Math.cos(angle) * 0.8;
-        this.legBRGroup.rotation.x = Math.sin(angle) * 0.8;
-        
-        // Body tilt
-        this.body.rotation.x = -0.1; // Head up/Body up front
-    } else if (isMoving) {
-        // Walk Animation
-        const speed = 8;
-        const angle = time * speed;
-
-        this.legFLGroup.rotation.x = Math.sin(angle) * 0.4;
-        this.legFRGroup.rotation.x = Math.cos(angle) * 0.4;
-        this.legBLGroup.rotation.x = Math.cos(angle) * 0.4;
-        this.legBRGroup.rotation.x = Math.sin(angle) * 0.4;
-
-        this.body.rotation.x = 0;
-    } else {
-        // Idle
-        this.legFLGroup.rotation.x = 0;
-        this.legFRGroup.rotation.x = 0;
-        this.legBLGroup.rotation.x = 0;
-        this.legBRGroup.rotation.x = 0;
-        this.body.rotation.x = 0;
-
-        if (this.isEating) {
-            // Eating animation
-            // Head down
-            // Since head is mesh not group, we rotate it around its center. 
-            // Its center is at 0,0,0 relative to parent... wait.
-            // In constructor: this.head.position.z = 0.65;
-            // If we rotate x, it rotates around its center.
-            // Ideally we want pivot at neck.
-            // Visual hack: rotate body slightly down? Or just head bob.
-            this.head.rotation.x = 0.3 + Math.sin(time * 15) * 0.1;
-            this.snout.position.y = 0.65 + Math.sin(time * 15) * 0.05; // Bob snout
+      case MobState.IDLE:
+        this.velocity.x = 0;
+        this.velocity.z = 0;
+        this.eatTimer += delta;
+        if (this.eatTimer > 5) {
+          this.eatTimer = 0;
         }
+        if (distToPlayer < this.detectionRadius) {
+          this.state = MobState.ALERT;
+          this.alertTimer = 2.0;
+        }
+        break;
+
+      case MobState.ALERT:
+        this.velocity.x = 0;
+        this.velocity.z = 0;
+        this.alertTimer -= delta;
+        if (this.alertTimer <= 0) {
+          this.state = MobState.FLEE;
+          this.fleeTimer = 3 + Math.random() * 3;
+        }
+        break;
+
+      case MobState.FLEE: {
+        if (distToPlayer < this.detectionRadius) {
+          const dir = this.mesh.position.clone().sub(playerPos as THREE.Vector3).normalize();
+          this.velocity.x = dir.x * this.runSpeed;
+          this.velocity.z = dir.z * this.runSpeed;
+        } else {
+          this.fleeTimer -= delta;
+          if (this.fleeTimer <= 0 || distToPlayer > 20) {
+            this.state = MobState.IDLE;
+            this.velocity.x = 0;
+            this.velocity.z = 0;
+          }
+        }
+        break;
+      }
+
+      default:
+        super.updateAI(delta, playerPos, onAttack, isDay);
+        break;
     }
-    
-    // Sync attached parts to head rotation if needed
-    // (Simulating hierarchy since we didn't group them perfectly)
-    // Actually, let's just keep it simple.
   }
 }

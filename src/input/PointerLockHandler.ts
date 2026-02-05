@@ -1,18 +1,31 @@
-import { GameState } from "../core/GameState";
-import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import type { IGameState } from "../contracts/gameState";
+import type { IControls } from "../contracts/controls";
 
 /**
  * Handles pointer lock/unlock events for pause menu logic
  */
 export class PointerLockHandler {
+  private controls: IControls;
+  private gameState: IGameState;
+  private onToggleInventory: () => void;
+  private onHidePauseMenu: () => void;
+  private onShowPauseMenu: () => void;
+  private isCliOpen: () => boolean;
+
   constructor(
-    private controls: PointerLockControls,
-    private gameState: GameState,
-    private onToggleInventory: () => void,
-    private onHidePauseMenu: () => void,
-    private onShowPauseMenu: () => void,
-    private isCliOpen: () => boolean,
+    controls: IControls,
+    gameState: IGameState,
+    onToggleInventory: () => void,
+    onHidePauseMenu: () => void,
+    onShowPauseMenu: () => void,
+    isCliOpen: () => boolean,
   ) {
+    this.controls = controls;
+    this.gameState = gameState;
+    this.onToggleInventory = onToggleInventory;
+    this.onHidePauseMenu = onHidePauseMenu;
+    this.onShowPauseMenu = onShowPauseMenu;
+    this.isCliOpen = isCliOpen;
     this.init();
   }
 

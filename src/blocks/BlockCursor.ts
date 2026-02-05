@@ -1,19 +1,27 @@
-import * as THREE from 'three';
-import { PerspectiveCamera } from 'three';
-import { Scene } from 'three';
+import * as THREE from "three";
+import { PerspectiveCamera } from "three";
+import { Scene } from "three";
+import type { IWorld } from "../contracts/world";
+import type { IControls } from "../contracts/controls";
+
+type SelectableObject = THREE.Object3D & {
+  isMesh?: boolean;
+  isItem?: boolean;
+  parent?: THREE.Object3D & { isMob?: boolean };
+};
 
 export class BlockCursor {
   private mesh: THREE.Mesh;
   private raycaster: THREE.Raycaster;
   private camera: PerspectiveCamera;
   private scene: Scene;
-  private controls: any; // PointerLockControls
+  private controls: IControls;
   private readonly MAX_DISTANCE = 6;
 
   constructor(
     scene: Scene,
     camera: PerspectiveCamera,
-    controls: any
+    controls: IControls
   ) {
     this.camera = camera;
     this.scene = scene;
@@ -32,17 +40,20 @@ export class BlockCursor {
     return this.mesh;
   }
 
-  public update(world: any): void {
+  public update(world: IWorld): void {
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
     const intersects = this.raycaster.intersectObjects(this.scene.children);
     
-    const hit = intersects.find(i => 
-      i.object !== this.mesh && 
-      i.object !== this.controls.object && 
-      (i.object as any).isMesh && 
-      !(i.object as any).isItem && 
-      !(i.object.parent as any)?.isMob
-    );
+    const hit = intersects.find((i) => {
+      const obj = i.object as SelectableObject;
+      return (
+        i.object !== this.mesh &&
+        i.object !== this.controls.object &&
+        obj.isMesh &&
+        !obj.isItem &&
+        !obj.parent?.isMob
+      );
+    });
 
     if (hit && hit.distance < this.MAX_DISTANCE) {
       const p = hit.point.clone().add(this.raycaster.ray.direction.clone().multiplyScalar(0.01));

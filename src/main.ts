@@ -8,7 +8,7 @@ import { KeyboardHandler } from "./input/KeyboardHandler";
 import { MouseHandler } from "./input/MouseHandler";
 import { PointerLockHandler } from "./input/PointerLockHandler";
 import { Game } from "./core/Game";
-import { FurnaceManager } from "./crafting/FurnaceManager";
+import { getSurfaceSpawnPosition } from "./utils/SpawnUtils";
 import "./style.css";
 
 // Initialize Tool Textures
@@ -37,6 +37,7 @@ const game = new Game(
   systems.craftingSystem,
   systems.craftingUI,
   systems.furnaceUI,
+  systems.furnaceManager,
 );
 
 // Set game reference for callbacks
@@ -49,10 +50,11 @@ const inventoryController = new InventoryController(
   systems.world,
   systems.inventory,
   systems.inventoryUI,
-  systems.inventoryUI["dragDrop"], // Access private field
+  systems.dragDrop,
   systems.craftingSystem,
   systems.craftingUI,
   systems.furnaceUI,
+  systems.furnaceManager,
   systems.isMobile,
 );
 
@@ -126,6 +128,7 @@ const autoSave = new AutoSave(
   systems.world,
   systems.controls,
   systems.inventory,
+  systems.furnaceManager,
 );
 autoSave.start();
 
@@ -138,22 +141,26 @@ const loadingScreen = new LoadingScreen();
 
 // Load World Data
 systems.world.loadWorld().then(async (data) => {
-  if (data.playerPosition) {
-    data.playerPosition.y += 0.5; // Prevent falling through floor
-    systems.controls.object.position.copy(data.playerPosition);
-  }
+  const spawnX =
+    data.playerPosition?.x ?? systems.controls.object.position.x;
+  const spawnZ =
+    data.playerPosition?.z ?? systems.controls.object.position.z;
+
   if (data.inventory) {
     systems.inventory.deserialize(data.inventory);
     systems.inventoryUI.refresh();
   }
 
   // Load Furnaces
-  await FurnaceManager.getInstance().load();
+  await systems.furnaceManager.load();
 
-  // Ensure starting chunk is loaded
-  const cx = Math.floor(systems.controls.object.position.x / 32);
-  const cz = Math.floor(systems.controls.object.position.z / 32);
+  // Ensure spawn chunk is loaded
+  const cx = Math.floor(spawnX / 32);
+  const cz = Math.floor(spawnZ / 32);
   await systems.world.waitForChunk(cx, cz);
+
+  const safeSpawn = getSurfaceSpawnPosition(systems.world, spawnX, spawnZ);
+  systems.controls.object.position.copy(safeSpawn);
 });
 
 // Start Loading Screen

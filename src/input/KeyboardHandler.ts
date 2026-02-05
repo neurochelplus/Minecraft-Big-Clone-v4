@@ -1,23 +1,40 @@
-import { GameState } from "../core/GameState";
-import { Player } from "../player/Player";
-import { Inventory } from "../inventory/Inventory";
-import { InventoryUI } from "../inventory/InventoryUI";
+import type { IGameState } from "../contracts/gameState";
+import type { IPlayerInput } from "../contracts/player";
+import type { IInventory } from "../contracts/inventory";
+import type { IInventoryUI } from "../contracts/ui";
 import { CLI } from "../ui/CLI";
 
 /**
  * Handles keyboard input for player movement and game controls
  */
 export class KeyboardHandler {
+  private gameState: IGameState;
+  private player: IPlayerInput;
+  private inventory: IInventory;
+  private inventoryUI: IInventoryUI;
+  private cli: CLI;
+  private onToggleInventory: (useCraftingTable: boolean) => void;
+  private onShowPauseMenu: () => void;
+  private onHotbarChange: () => void;
+
   constructor(
-    private gameState: GameState,
-    private player: Player,
-    private inventory: Inventory,
-    private inventoryUI: InventoryUI,
-    private cli: CLI,
-    private onToggleInventory: (useCraftingTable: boolean) => void,
-    private onShowPauseMenu: () => void,
-    private onHotbarChange: () => void,
+    gameState: IGameState,
+    player: IPlayerInput,
+    inventory: IInventory,
+    inventoryUI: IInventoryUI,
+    cli: CLI,
+    onToggleInventory: (useCraftingTable: boolean) => void,
+    onShowPauseMenu: () => void,
+    onHotbarChange: () => void,
   ) {
+    this.gameState = gameState;
+    this.player = player;
+    this.inventory = inventory;
+    this.inventoryUI = inventoryUI;
+    this.cli = cli;
+    this.onToggleInventory = onToggleInventory;
+    this.onShowPauseMenu = onShowPauseMenu;
+    this.onHotbarChange = onHotbarChange;
     this.init();
   }
 
@@ -104,11 +121,13 @@ export class KeyboardHandler {
         if (!this.gameState.getPaused()) this.onToggleInventory(false);
         break;
       case "Escape":
-        const invMenu = document.getElementById("inventory-menu")!;
-        if (invMenu.style.display === "flex") {
-          this.onToggleInventory(false);
-        } else if (this.gameState.getGameStarted()) {
-          this.onShowPauseMenu();
+        {
+          const invMenu = document.getElementById("inventory-menu")!;
+          if (invMenu.style.display === "flex") {
+            this.onToggleInventory(false);
+          } else if (this.gameState.getGameStarted()) {
+            this.onShowPauseMenu();
+          }
         }
         break;
     }

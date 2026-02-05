@@ -1,13 +1,10 @@
+import type { IInventory, InventorySlot } from "../contracts/inventory";
+
+export type { InventorySlot } from "../contracts/inventory";
+
 // Класс для управления данными инвентаря
 
-export type InventorySlot = {
-  id: number;
-  count: number;
-  durability?: number;
-  maxDurability?: number;
-};
-
-export class Inventory {
+export class Inventory implements IInventory {
   private slots: InventorySlot[];
   private selectedSlot: number = 0;
   private readonly SLOT_COUNT = 36;

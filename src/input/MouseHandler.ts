@@ -1,11 +1,10 @@
-import { GameState } from "../core/GameState";
-import { Player } from "../player/Player";
-import { BlockBreaking } from "../blocks/BlockBreaking";
-import { BlockInteraction } from "../blocks/BlockInteraction";
-import { World } from "../world/World";
-import { Inventory } from "../inventory/Inventory";
-import { InventoryUI } from "../inventory/InventoryUI";
-import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import type { IGameState } from "../contracts/gameState";
+import type { IPlayerInput } from "../contracts/player";
+import type { IBlockBreaking, IBlockInteraction } from "../contracts/blocks";
+import type { IWorld } from "../contracts/world";
+import type { IInventory } from "../contracts/inventory";
+import type { IInventoryUI } from "../contracts/ui";
+import type { IControls } from "../contracts/controls";
 
 /**
  * Handles mouse input for attacking, placing blocks, and hotbar scrolling
@@ -13,19 +12,39 @@ import { PointerLockControls } from "three/examples/jsm/controls/PointerLockCont
 export class MouseHandler {
   public isAttackPressed = false;
   public isUsePressed = false;
+  private gameState: IGameState;
+  private player: IPlayerInput;
+  private blockBreaking: IBlockBreaking;
+  private blockInteraction: IBlockInteraction;
+  private world: IWorld;
+  private inventory: IInventory;
+  private inventoryUI: IInventoryUI;
+  private controls: IControls;
+  private isMobile: boolean;
+  private onHotbarChange: () => void;
 
   constructor(
-    private gameState: GameState,
-    private player: Player,
-    private blockBreaking: BlockBreaking,
-    private blockInteraction: BlockInteraction,
-    private world: World,
-    private inventory: Inventory,
-    private inventoryUI: InventoryUI,
-    private controls: PointerLockControls,
-    private isMobile: boolean,
-    private onHotbarChange: () => void,
+    gameState: IGameState,
+    player: IPlayerInput,
+    blockBreaking: IBlockBreaking,
+    blockInteraction: IBlockInteraction,
+    world: IWorld,
+    inventory: IInventory,
+    inventoryUI: IInventoryUI,
+    controls: IControls,
+    isMobile: boolean,
+    onHotbarChange: () => void,
   ) {
+    this.gameState = gameState;
+    this.player = player;
+    this.blockBreaking = blockBreaking;
+    this.blockInteraction = blockInteraction;
+    this.world = world;
+    this.inventory = inventory;
+    this.inventoryUI = inventoryUI;
+    this.controls = controls;
+    this.isMobile = isMobile;
+    this.onHotbarChange = onHotbarChange;
     this.init();
   }
 

@@ -1,7 +1,12 @@
 import * as THREE from "three";
 import { BLOCK } from "../constants/Blocks";
-import { BLOCK_DEFS, hexToRgb } from "../constants/BlockTextures";
+import { hexToRgb } from "../constants/BlockTextures";
 import { TOOL_DEFS } from "../constants/ToolTextures";
+
+type ToolDef = {
+  pattern: string[];
+  color: string;
+};
 
 export class PlayerHand {
   private camera: THREE.Camera;
@@ -22,16 +27,12 @@ export class PlayerHand {
 
   // Texture References
   private blockTexture: THREE.DataTexture;
-  private toolTextures: Record<number, { texture: THREE.CanvasTexture }>;
-
   constructor(
     camera: THREE.Camera,
     blockTexture: THREE.DataTexture,
-    toolTextures: Record<number, any>,
   ) {
     this.camera = camera;
     this.blockTexture = blockTexture;
-    this.toolTextures = toolTextures;
 
     this.handGroup = new THREE.Group();
     this.camera.add(this.handGroup);
@@ -70,7 +71,7 @@ export class PlayerHand {
     );
   }
 
-  private createToolMesh(def: any): THREE.Mesh {
+  private createToolMesh(def: ToolDef): THREE.Mesh {
     const positions: number[] = [];
     const normals: number[] = [];
     const colors: number[] = [];

@@ -1,8 +1,18 @@
 import * as THREE from "three";
 import { PerspectiveCamera } from "three";
 import { Scene } from "three";
-import { World } from "../world/World";
+import type { IWorld } from "../contracts/world";
 import { BLOCK } from "../constants/Blocks";
+
+type ControlsLike = {
+  object: THREE.Object3D;
+};
+
+type SelectableObject = THREE.Object3D & {
+  isMesh?: boolean;
+  isItem?: boolean;
+  parent?: THREE.Object3D & { isMob?: boolean };
+};
 
 export class BlockBreaking {
   private crackMesh: THREE.Mesh;
@@ -10,7 +20,7 @@ export class BlockBreaking {
   private raycaster: THREE.Raycaster;
   private camera: PerspectiveCamera;
   private scene: Scene;
-  private controls: any;
+  private controls: ControlsLike;
   private cursorMesh?: THREE.Mesh;
 
   private isBreaking: boolean = false;
@@ -29,7 +39,7 @@ export class BlockBreaking {
   constructor(
     scene: Scene,
     camera: PerspectiveCamera,
-    controls: any,
+    controls: ControlsLike,
     getSelectedSlotItem: () => number,
     onBlockBreak?: (x: number, y: number, z: number, blockId: number) => void,
     cursorMesh?: THREE.Mesh,
@@ -107,19 +117,21 @@ export class BlockBreaking {
     return this.isBreaking;
   }
 
-  public start(world: World): void {
+  public start(world: IWorld): void {
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
     const hit = this.raycaster
       .intersectObjects(this.scene.children)
-      .find(
-        (i) =>
+      .find((i) => {
+        const obj = i.object as SelectableObject;
+        return (
           i.object !== this.cursorMesh &&
           i.object !== this.crackMesh &&
           i.object !== this.controls.object &&
-          (i.object as any).isMesh &&
-          !(i.object as any).isItem &&
-          !(i.object.parent as any)?.isMob,
-      );
+          obj.isMesh &&
+          !obj.isItem &&
+          !obj.parent?.isMob
+        );
+      });
 
     if (hit && hit.distance < 6) {
       const p = hit.point
@@ -144,7 +156,7 @@ export class BlockBreaking {
     this.crackMesh.visible = false;
   }
 
-  public update(time: number, world: World): void {
+  public update(time: number, world: IWorld): void {
     if (!this.isBreaking) {
       this.crackMesh.visible = false;
       return;
@@ -154,15 +166,17 @@ export class BlockBreaking {
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
     const hit = this.raycaster
       .intersectObjects(this.scene.children)
-      .find(
-        (i) =>
+      .find((i) => {
+        const obj = i.object as SelectableObject;
+        return (
           i.object !== this.cursorMesh &&
           i.object !== this.crackMesh &&
           i.object !== this.controls.object &&
-          (i.object as any).isMesh &&
-          !(i.object as any).isItem &&
-          !(i.object.parent as any)?.isMob,
-      );
+          obj.isMesh &&
+          !obj.isItem &&
+          !obj.parent?.isMob
+        );
+      });
 
     let lookingAtSame = false;
     if (hit && hit.distance < 6) {

@@ -1,7 +1,6 @@
-import * as THREE from "three";
-import { Mob, MobState } from "./Mob";
-import { World } from "../world/World";
-import { Player } from "../player/Player";
+﻿import * as THREE from "three";
+import { Mob } from "./Mob";
+import type { IWorld } from "../contracts/world";
 
 export class Zombie extends Mob {
   protected readonly walkSpeed: number = 1.75;
@@ -24,7 +23,7 @@ export class Zombie extends Mob {
   private rightLeg: THREE.Mesh;
 
   constructor(
-    world: World,
+    world: IWorld,
     scene: THREE.Scene,
     x: number,
     y: number,
@@ -80,33 +79,6 @@ export class Zombie extends Mob {
 
     this.rightArm = this.createBox(0.2, 0.7, 0.2, skinColor, -0.35, texture);
     this.rightArmGroup.add(this.rightArm);
-
-    // Fix UVs to only use the "Noise" part of atlas (0 - 1/12)
-    const fixUVs = (mesh: THREE.Mesh) => {
-      const uvAttr = mesh.geometry.getAttribute("uv");
-      if (!uvAttr) return;
-
-      const uvScale = 1.0 / 12.0; // 12 slots in atlas now
-
-      for (let i = 0; i < uvAttr.count; i++) {
-        let u = uvAttr.getX(i);
-        // Map 0..1 to 0..0.0833 (Slot 0)
-        u = u * uvScale;
-        uvAttr.setX(i, u);
-      }
-      uvAttr.needsUpdate = true;
-    };
-
-    fixUVs(this.leftLeg);
-    fixUVs(this.rightLeg);
-    fixUVs(this.body);
-    fixUVs(this.head);
-    fixUVs(this.leftArm);
-    fixUVs(this.rightArm);
-
-    // Initial Pose
-    this.leftArmGroup.rotation.x = -Math.PI / 2;
-    this.rightArmGroup.rotation.x = -Math.PI / 2;
   }
 
   protected updateAI(
@@ -115,309 +87,76 @@ export class Zombie extends Mob {
     onAttack?: (damage: number) => void,
     isDay?: boolean,
   ) {
-    const time = performance.now() / 1000;
+    if (this.isDead) return;
 
-    // --- Burning Logic ---
-    if (isDay && !this.isDead) {
-      // Check if under cover
-      const x = Math.floor(this.mesh.position.x);
-      const z = Math.floor(this.mesh.position.z);
-      const y = Math.floor(this.mesh.position.y + 1.8); // Check from head up
-
-      let covered = false;
-      // Check 10 blocks up
-      for (let i = 0; i < 10; i++) {
-        if (this.world.hasBlock(x, y + i, z)) {
-          covered = true;
-          break;
-        }
+    // Daytime behavior
+    if (isDay) {
+      // Avoid sunlight: seek shelter if not already
+      if (!this.targetShelter) {
+        this.targetShelter = this.findShelter();
       }
 
-      this.setFire(!covered);
-    } else {
-      this.setFire(false);
-    }
+      if (this.targetShelter) {
+        const dir = this.targetShelter.clone().sub(this.mesh.position);
+        const dist = dir.length();
+        dir.normalize();
+        this.velocity.x = dir.x * this.walkSpeed;
+        this.velocity.z = dir.z * this.walkSpeed;
 
-    // --- Animation ---
-    const isMoving = this.velocity.lengthSq() > 0.1;
-
-    if (isMoving) {
-      const speed = 10;
-      const angle = time * speed;
-
-      this.leftLegGroup.rotation.x = Math.sin(angle) * 0.5;
-      this.rightLegGroup.rotation.x = -Math.sin(angle) * 0.5;
-
-      // Arms (Zombie pose + swing)
-      // Swing opposite to legs
-      this.leftArmGroup.rotation.x =
-        -Math.PI / 2 + Math.sin(angle + Math.PI) * 0.2;
-      this.rightArmGroup.rotation.x = -Math.PI / 2 + Math.sin(angle) * 0.2;
-    } else {
-      // Idle
-      this.leftLegGroup.rotation.x = 0;
-      this.rightLegGroup.rotation.x = 0;
-
-      // Breathing
-      this.leftArmGroup.rotation.x = -Math.PI / 2 + Math.sin(time * 2) * 0.05;
-      this.rightArmGroup.rotation.x =
-        -Math.PI / 2 + Math.sin(time * 2 + 1) * 0.05;
-    }
-
-    if (!playerPos) {
-      super.updateAI(delta, playerPos, onAttack, isDay);
+        if (dist < 1) {
+          // Reached shelter
+          this.velocity.x = 0;
+          this.velocity.z = 0;
+        }
+      } else {
+        // If no shelter found, behave like normal mob
+        super.updateAI(delta, playerPos, onAttack, isDay);
+      }
       return;
     }
 
-    const dist = this.mesh.position.distanceTo(playerPos);
+    // Nighttime behavior
+    this.targetShelter = null;
 
-    // --- Shelter Logic ---
-    // If burning, day, far from player, and not already seeking or chasing close
-    if (
-      isDay &&
-      this.isOnFire &&
-      dist > 12 &&
-      this.state !== MobState.SEEK_SHELTER &&
-      this.state !== MobState.ATTACK
-    ) {
-      const shelter = this.findNearbyShelter();
-      if (shelter) {
-        this.state = MobState.SEEK_SHELTER;
-        this.targetShelter = shelter;
-      }
-    }
+    if (playerPos) {
+      const toPlayer = playerPos.clone().sub(this.mesh.position);
+      const distance = toPlayer.length();
+      toPlayer.normalize();
 
-    // Stop seeking if night or player is close
-    if (this.state === MobState.SEEK_SHELTER) {
-      if (!isDay || dist < 10) {
-        this.state = MobState.IDLE;
-        this.targetShelter = null;
-      }
-    }
-
-    // State Handling
-    if (this.state === MobState.SEEK_SHELTER && this.targetShelter) {
-      // Move to shelter
-      const dx = this.targetShelter.x - this.mesh.position.x;
-      const dz = this.targetShelter.z - this.mesh.position.z;
-      const dToShelter = Math.sqrt(dx * dx + dz * dz);
-
-      if (dToShelter > 0.5) {
-        const angle = Math.atan2(dx, dz);
-        this.mesh.rotation.y = angle;
-        this.velocity.x = Math.sin(angle) * this.walkSpeed;
-        this.velocity.z = Math.cos(angle) * this.walkSpeed;
+      if (distance < 1.5) {
+        // Attack if close enough
+        const now = performance.now();
+        if (now - this.lastAttackTime > 1000) {
+          this.lastAttackTime = now;
+          if (onAttack) onAttack(2);
+        }
+      } else if (distance < 12) {
+        // Chase
+        this.velocity.x = toPlayer.x * this.walkSpeed * 1.2;
+        this.velocity.z = toPlayer.z * this.walkSpeed * 1.2;
       } else {
-        // Reached shelter
-        this.velocity.x = 0;
-        this.velocity.z = 0;
+        // Wander
+        super.updateAI(delta, playerPos, onAttack, isDay);
       }
-    } else if (this.state !== MobState.CHASE && dist < 15) {
-      this.state = MobState.CHASE;
-    } else if (this.state === MobState.CHASE && dist > 20) {
-      this.state = MobState.IDLE;
-      this.velocity.x = 0;
-      this.velocity.z = 0;
-    }
-
-    if (this.state === MobState.CHASE) {
-      const dx = playerPos.x - this.mesh.position.x;
-      const dz = playerPos.z - this.mesh.position.z;
-      let angle = Math.atan2(dx, dz);
-
-      // --- Obstacle Avoidance ---
-      const p = this.mesh.position;
-      const forward = new THREE.Vector3(
-        Math.sin(angle),
-        0,
-        Math.cos(angle),
-      ).normalize();
-      const checkDist = 1.0;
-
-      // Helper to check if direction is blocked by a wall that we cannot auto-jump (2 blocks high)
-      const isBlocked = (
-        origin: THREE.Vector3,
-        dir: THREE.Vector3,
-        d: number,
-      ) => {
-        const target = origin.clone().add(dir.clone().multiplyScalar(d));
-        const tx = Math.floor(target.x);
-        const tz = Math.floor(target.z);
-        const ty = Math.floor(target.y);
-
-        // We are blocked if there is a block at Eye Level (y+1) OR (Body Level (y) AND Cannot Jump)
-        // Actually, simplistic view: Check if we will hit something we can't jump over.
-        // We can jump over 1 block. So check y+1.
-
-        // Also check for big drops? (Not implemented here, they might fall)
-
-        return this.world.hasBlock(tx, ty + 1, tz);
-      };
-
-      if (isBlocked(p, forward, checkDist)) {
-        // Main path blocked, try diagonals
-        const leftDir = forward
-          .clone()
-          .applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
-        const rightDir = forward
-          .clone()
-          .applyAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 4);
-
-        const leftBlocked = isBlocked(p, leftDir, checkDist);
-        const rightBlocked = isBlocked(p, rightDir, checkDist);
-
-        if (!leftBlocked && !rightBlocked) {
-          // Both open, bias slightly?
-          angle += Math.PI / 4;
-        } else if (!leftBlocked) {
-          angle += Math.PI / 4;
-        } else if (!rightBlocked) {
-          angle -= Math.PI / 4;
-        } else {
-          // Both diagonals blocked, try 90 degrees
-          const left90Dir = forward
-            .clone()
-            .applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
-          if (!isBlocked(p, left90Dir, checkDist)) {
-            angle += Math.PI / 2;
-          } else {
-            angle -= Math.PI / 2;
-          }
-        }
-      }
-
-      this.mesh.rotation.y = angle;
-
-      if (dist > 2.0) {
-        this.velocity.x = Math.sin(angle) * this.walkSpeed;
-        this.velocity.z = Math.cos(angle) * this.walkSpeed;
-      } else {
-        this.velocity.x = 0;
-        this.velocity.z = 0;
-      }
-
-      if (dist < 1.5) {
-        const pushDir = this.mesh.position.clone().sub(playerPos).normalize();
-        const pushSpeed = 5.0;
-        this.velocity.x += pushDir.x * pushSpeed;
-        this.velocity.z += pushDir.z * pushSpeed;
-      }
-
-      if (dist < 2.2) {
-        // Line of Sight Check
-        const eyePos = this.mesh.position.clone();
-        eyePos.y += 1.6;
-
-        const toPlayer = playerPos.clone().sub(eyePos);
-        const distance = toPlayer.length();
-        toPlayer.normalize();
-
-        const raycaster = new THREE.Raycaster(eyePos, toPlayer, 0, distance);
-        // Only check for blocks (which are in scene.children as meshes but not mobs/items)
-        const intersects = raycaster.intersectObjects(this.scene.children);
-
-        let blocked = false;
-        for (const hit of intersects) {
-          // Ignore mobs, items, and self
-          if (hit.object === this.mesh || hit.object.parent === this.mesh)
-            continue;
-          if (hit.object.userData.mob || hit.object.parent?.userData.mob)
-            continue;
-          if ((hit.object as any).isItem) continue;
-          if ((hit.object as any).isCursor) continue; // Assuming cursor might be there
-
-          // If we hit a block, we are blocked
-          blocked = true;
-          break;
-        }
-
-        if (!blocked) {
-          const now = performance.now();
-          if (now - this.lastAttackTime > 1500) {
-            this.state = MobState.ATTACK;
-            if (onAttack) onAttack(2);
-
-            this.leftArmGroup.rotation.x -= 0.6;
-            this.rightArmGroup.rotation.x -= 0.6;
-
-            this.lastAttackTime = now;
-          }
-        }
-      }
-    } else if (this.state !== MobState.SEEK_SHELTER) {
+    } else {
       super.updateAI(delta, playerPos, onAttack, isDay);
     }
   }
 
-  private findNearbyShelter(): THREE.Vector3 | null {
-    const range = 10;
-    const startX = Math.floor(this.mesh.position.x);
-    const startY = Math.floor(this.mesh.position.y);
-    const startZ = Math.floor(this.mesh.position.z);
+  private findShelter(): THREE.Vector3 | null {
+    // Try 20 random positions to find a block overhead
+    for (let i = 0; i < 20; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 10 + Math.random() * 15;
+      const x = Math.floor(this.mesh.position.x + Math.cos(angle) * dist);
+      const z = Math.floor(this.mesh.position.z + Math.sin(angle) * dist);
+      const y = this.world.getTopY(x, z);
 
-    let bestSpot: THREE.Vector3 | null = null;
-    let minDist = Infinity;
-
-    for (let x = -range; x <= range; x++) {
-      for (let z = -range; z <= range; z++) {
-        const cx = startX + x;
-        const cz = startZ + z;
-
-        // 1. Must be walkable (ground at y or y-1)
-        // We assume flat-ish terrain for simplicity or check current Y level
-        // Check if ground exists at Y-1
-        if (!this.world.hasBlock(cx, startY - 1, cz)) continue;
-
-        // 2. Must be empty space for body (Y and Y+1)
-        if (
-          this.world.hasBlock(cx, startY, cz) ||
-          this.world.hasBlock(cx, startY + 1, cz)
-        )
-          continue;
-
-        // 3. Must have roof within reasonable height (Y+2 to Y+10)
-        let hasRoof = false;
-        for (let k = 2; k <= 10; k++) {
-          if (this.world.hasBlock(cx, startY + k, cz)) {
-            hasRoof = true;
-            break;
-          }
-        }
-
-        if (hasRoof) {
-          const dist = x * x + z * z;
-          if (dist < minDist) {
-            minDist = dist;
-            bestSpot = new THREE.Vector3(cx + 0.5, startY, cz + 0.5);
-          }
-        }
+      // Check if block above exists (shade)
+      if (this.world.hasBlock(x, y + 3, z)) {
+        return new THREE.Vector3(x + 0.5, y + 1, z + 0.5);
       }
     }
-    return bestSpot;
-  }
-
-  protected onHorizontalCollision() {
-    if (this.isOnGround) {
-      const direction = new THREE.Vector3(0, 0, 1).applyAxisAngle(
-        new THREE.Vector3(0, 1, 0),
-        this.mesh.rotation.y,
-      );
-      const checkDist = 0.8;
-      const checkPos = this.mesh.position
-        .clone()
-        .add(direction.multiplyScalar(checkDist));
-
-      const x = Math.floor(checkPos.x);
-      const z = Math.floor(checkPos.z);
-      const y = Math.floor(this.mesh.position.y);
-
-      if (
-        !this.world.hasBlock(x, y + 1, z) &&
-        !this.world.hasBlock(x, y + 2, z)
-      ) {
-        this.velocity.y = Math.sqrt(2 * 20.0 * 1.25);
-        this.isOnGround = false;
-      }
-    }
+    return null;
   }
 }

@@ -6,9 +6,18 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "depcruise:check": "depcruise --config .dependency-cruiser.json src",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
+    "dependency-cruiser": "^16.10.0",
+    "eslint": "^9.20.0",
+    "@eslint/js": "^9.20.0",
+    "globals": "^15.14.0",
+    "typescript-eslint": "^8.23.0",
     "typescript": "~5.9.3",
     "vite": "^7.2.4"
   },

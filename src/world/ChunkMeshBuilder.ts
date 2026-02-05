@@ -1,13 +1,15 @@
 import * as THREE from "three";
 import { BLOCK } from "../constants/Blocks";
 import { TextureAtlas } from "./TextureAtlas";
-import { FurnaceManager } from "../crafting/FurnaceManager";
 import { BlockColors } from "../constants/BlockColors";
+import type { IFurnaceManager } from "../contracts/crafting";
 
 export class ChunkMeshBuilder {
   private noiseTexture: THREE.DataTexture;
+  private furnaceManager?: IFurnaceManager;
 
-  constructor() {
+  constructor(furnaceManager?: IFurnaceManager) {
+    this.furnaceManager = furnaceManager;
     this.noiseTexture = TextureAtlas.createNoiseTexture();
   }
 
@@ -145,7 +147,7 @@ export class ChunkMeshBuilder {
       if (side === "top") slot = 10;
       else if (side === "bottom") slot = 9;
       else {
-        const furnace = FurnaceManager.getInstance().getFurnace(worldX, worldY, worldZ);
+        const furnace = this.furnaceManager?.getFurnace(worldX, worldY, worldZ);
         const rot = furnace?.rotation ?? 0;
 
         let frontFace = "front";

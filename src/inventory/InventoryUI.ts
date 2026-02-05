@@ -1,4 +1,4 @@
-import { Inventory } from "./Inventory";
+import type { IInventory } from "../contracts/inventory";
 import { DragDrop } from "./DragDrop";
 import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { getBlockColor } from "../utils/BlockColors";
@@ -6,22 +6,20 @@ import { BLOCK_NAMES } from "../constants/BlockNames";
 import { BLOCK } from "../constants/Blocks";
 
 export class InventoryUI {
-  private inventory: Inventory;
+  private inventory: IInventory;
   private dragDrop: DragDrop;
   private hotbarContainer: HTMLElement;
   private inventoryGrid: HTMLElement;
   private inventoryMenu: HTMLElement;
   private tooltip: HTMLElement;
-  private isMobile: boolean;
 
   private touchStartSlotIndex: number | null = null;
 
   public onInventoryChange: (() => void) | null = null;
 
-  constructor(inventory: Inventory, dragDrop: DragDrop, isMobile: boolean) {
+  constructor(inventory: IInventory, dragDrop: DragDrop) {
     this.inventory = inventory;
     this.dragDrop = dragDrop;
-    this.isMobile = isMobile;
 
     this.hotbarContainer = document.getElementById("hotbar")!;
     this.inventoryGrid = document.getElementById("inventory-grid")!;

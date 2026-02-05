@@ -1,6 +1,7 @@
-import * as THREE from 'three';
+import * as THREE from "three";
+import type { IEnvironment } from "../contracts/environment";
 
-export class Environment {
+export class Environment implements IEnvironment {
   private scene: THREE.Scene;
   private dirLight: THREE.DirectionalLight;
   private ambientLight: THREE.AmbientLight;

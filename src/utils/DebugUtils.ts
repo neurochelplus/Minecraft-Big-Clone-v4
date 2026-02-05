@@ -1,6 +1,6 @@
-import { Environment } from "../world/Environment";
+import type { IEnvironment } from "../contracts/environment";
 
-export function initDebugControls(environment: Environment) {
+export function initDebugControls(environment: IEnvironment) {
   window.addEventListener("keydown", (event) => {
     // Only trigger if not typing in an input (though we don't have inputs yet, good practice)
     if (

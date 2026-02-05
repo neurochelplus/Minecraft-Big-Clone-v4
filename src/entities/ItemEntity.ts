@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { World } from "../world/World";
+import type { IWorld } from "../contracts/world";
 import { ItemPhysics } from "./ItemPhysics";
 import { ItemLifecycle } from "./ItemLifecycle";
 import { ItemRenderer } from "./ItemRenderer";
@@ -17,7 +17,7 @@ export class ItemEntity {
   private timeOffset: number;
 
   constructor(
-    world: World,
+    world: IWorld,
     scene: THREE.Scene,
     x: number,
     y: number,
@@ -34,7 +34,7 @@ export class ItemEntity {
 
     // Create mesh
     this.mesh = ItemRenderer.createMesh(type, blockTexture, itemTexture);
-    (this.mesh as any).isItem = true;
+    (this.mesh as THREE.Mesh & { isItem?: boolean }).isItem = true;
     this.mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
 
     // Initialize modules

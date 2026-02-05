@@ -36,9 +36,9 @@ export class DB {
     });
   }
 
-  async set(
+  async set<T>(
     key: string,
-    value: any,
+    value: T,
     store: string = this.storeName,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -52,7 +52,7 @@ export class DB {
     });
   }
 
-  async get(key: string, store: string = this.storeName): Promise<any> {
+  async get<T>(key: string, store: string = this.storeName): Promise<T | undefined> {
     return new Promise((resolve, reject) => {
       if (!this.db) return reject("DB not initialized");
       const transaction = this.db.transaction([store], "readonly");
@@ -60,7 +60,7 @@ export class DB {
       const request = objectStore.get(key);
 
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result as T | undefined);
     });
   }
 
@@ -109,7 +109,7 @@ export class DB {
       if (!this.db) await this.init();
       const meta = await this.get("player", "meta");
       return !!meta;
-    } catch (e) {
+    } catch (_e) {
       return false;
     }
   }

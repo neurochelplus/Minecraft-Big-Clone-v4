@@ -1,20 +1,14 @@
-import * as THREE from "three";
 import { Renderer } from "./Renderer";
-import { GameState } from "./GameState";
-import { World } from "../world/World";
-import { Environment } from "../world/Environment";
+import type { IWorld } from "../contracts/world";
+import type { IEnvironment } from "../contracts/environment";
+import type { IGameState } from "../contracts/gameState";
 import { ItemEntity } from "../entities/ItemEntity";
-import { MobManager } from "../mobs/MobManager";
-import { Player } from "../player/Player";
-import { BlockCursor } from "../blocks/BlockCursor";
-import { BlockBreaking } from "../blocks/BlockBreaking";
-import { BlockInteraction } from "../blocks/BlockInteraction";
-import { Inventory } from "../inventory/Inventory";
-import { InventoryUI } from "../inventory/InventoryUI";
-import { CraftingSystem } from "../crafting/CraftingSystem";
-import { CraftingUI } from "../crafting/CraftingUI";
-import { FurnaceUI } from "../crafting/FurnaceUI";
-import { FurnaceManager } from "../crafting/FurnaceManager";
+import type { IMobManager } from "../contracts/mobs";
+import type { IBlockCursor, IBlockBreaking, IBlockInteraction } from "../contracts/blocks";
+import type { IInventory } from "../contracts/inventory";
+import type { IPlayerRuntime } from "../contracts/player";
+import type { ICrafting, IFurnaceManager } from "../contracts/crafting";
+import type { IInventoryUI, ICraftingUI, IFurnaceUI } from "../contracts/ui";
 import { MobileControls } from "../mobile/MobileControls";
 import { CLI } from "../ui/CLI";
 import { Menus } from "../ui/Menus";
@@ -25,22 +19,23 @@ import { TOOL_DURABILITY } from "../constants/GameConstants";
  * Главный класс игры, координирующий все системы
  */
 export class Game {
-  [x: string]: any;
+  [x: string]: unknown;
   public renderer: Renderer;
-  public gameState: GameState;
-  public world: World;
-  public environment: Environment;
+  public gameState: IGameState;
+  public world: IWorld;
+  public environment: IEnvironment;
   public entities: ItemEntity[];
-  public mobManager: MobManager;
-  public player: Player;
-  public blockCursor: BlockCursor;
-  public blockBreaking: BlockBreaking;
-  public blockInteraction: BlockInteraction;
-  public inventory: Inventory;
-  public inventoryUI: InventoryUI;
-  public craftingSystem: CraftingSystem;
-  public craftingUI: CraftingUI;
-  public furnaceUI: FurnaceUI;
+  public mobManager: IMobManager;
+  public player: IPlayerRuntime;
+  public blockCursor: IBlockCursor;
+  public blockBreaking: IBlockBreaking;
+  public blockInteraction: IBlockInteraction;
+  public inventory: IInventory;
+  public inventoryUI: IInventoryUI;
+  public craftingSystem: ICrafting;
+  public craftingUI: ICraftingUI;
+  public furnaceUI: IFurnaceUI;
+  private furnaceManager: IFurnaceManager;
   public mobileControls: MobileControls | null = null;
   public cli: CLI;
   public menus: Menus;
@@ -53,20 +48,21 @@ export class Game {
 
   constructor(
     renderer: Renderer,
-    gameState: GameState,
-    world: World,
-    environment: Environment,
+    gameState: IGameState,
+    world: IWorld,
+    environment: IEnvironment,
     entities: ItemEntity[],
-    mobManager: MobManager,
-    player: Player,
-    blockCursor: BlockCursor,
-    blockBreaking: BlockBreaking,
-    blockInteraction: BlockInteraction,
-    inventory: Inventory,
-    inventoryUI: InventoryUI,
-    craftingSystem: CraftingSystem,
-    craftingUI: CraftingUI,
-    furnaceUI: FurnaceUI,
+    mobManager: IMobManager,
+    player: IPlayerRuntime,
+    blockCursor: IBlockCursor,
+    blockBreaking: IBlockBreaking,
+    blockInteraction: IBlockInteraction,
+    inventory: IInventory,
+    inventoryUI: IInventoryUI,
+    craftingSystem: ICrafting,
+    craftingUI: ICraftingUI,
+    furnaceUI: IFurnaceUI,
+    furnaceManager: IFurnaceManager,
   ) {
     this.renderer = renderer;
     this.gameState = gameState;
@@ -90,6 +86,7 @@ export class Game {
     this.craftingSystem = craftingSystem;
     this.craftingUI = craftingUI;
     this.furnaceUI = furnaceUI;
+    this.furnaceManager = furnaceManager;
 
     // UI Systems
     this.cli = new CLI(this);
@@ -102,8 +99,8 @@ export class Game {
   }
 
   /**
-   * Запуск игрового цикла
-   */
+ * Главный класс игры, координирующий все системы
+ */
   public start(): void {
     if (this.animationId !== null) {
       return; // Already started
@@ -117,8 +114,8 @@ export class Game {
   }
 
   /**
-   * Остановка игрового цикла
-   */
+ * Главный класс игры, координирующий все системы
+ */
   public stop(): void {
     if (this.animationId !== null) {
       cancelAnimationFrame(this.animationId);
@@ -131,8 +128,8 @@ export class Game {
   }
 
   /**
-   * Основной игровой цикл
-   */
+ * Главный класс игры, координирующий все системы
+ */
   private animate = (): void => {
     this.animationId = requestAnimationFrame(this.animate);
 
@@ -146,8 +143,8 @@ export class Game {
   };
 
   /**
-   * Обновление игрового состояния
-   */
+ * Главный класс игры, координирующий все системы
+ */
   public handleToolUse = (amount: number): void => {
     const slotIndex = this.inventory.getSelectedSlot();
     const slot = this.inventory.getSlot(slotIndex);
@@ -203,10 +200,10 @@ export class Game {
     const time = performance.now();
     const delta = (time - this.prevTime) / 1000;
 
-    // World & Environment
+    // IWorld & Environment
     this.world.update(this.renderer.controls.object.position);
     this.environment.update(delta, this.renderer.controls.object.position);
-    FurnaceManager.getInstance().tick(delta);
+    this.furnaceManager.tick(delta);
     if (this.furnaceUI.isVisible()) {
       this.furnaceUI.updateVisuals();
     }

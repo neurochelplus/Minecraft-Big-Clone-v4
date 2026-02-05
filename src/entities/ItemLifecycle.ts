@@ -2,10 +2,12 @@ import * as THREE from "three";
 import { ITEM_ENTITY } from "../constants/GameConstants";
 
 export class ItemLifecycle {
+  private mesh: THREE.Mesh;
   private creationTime: number;
   public isDead: boolean = false;
 
-  constructor(private mesh: THREE.Mesh) {
+  constructor(mesh: THREE.Mesh) {
+    this.mesh = mesh;
     this.creationTime = performance.now();
   }
 

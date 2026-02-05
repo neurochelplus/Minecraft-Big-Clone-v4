@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import type { IControls } from "../contracts/controls";
 import { HealthBar } from '../ui/HealthBar';
 
 export class PlayerHealth {
@@ -9,17 +9,19 @@ export class PlayerHealth {
   private damageOverlay: HTMLElement;
   private healthBar: HealthBar;
   private camera: THREE.PerspectiveCamera;
-  private controls: PointerLockControls;
+  private controls: IControls;
   private checkCollision: (position: THREE.Vector3) => boolean;
   private onRespawn?: () => void;
+  private getRespawnPosition?: () => THREE.Vector3;
 
   constructor(
     damageOverlay: HTMLElement,
     healthBar: HealthBar,
     camera: THREE.PerspectiveCamera,
-    controls: PointerLockControls,
+    controls: IControls,
     checkCollision: (position: THREE.Vector3) => boolean,
-    onRespawn?: () => void
+    onRespawn?: () => void,
+    getRespawnPosition?: () => THREE.Vector3
   ) {
     this.damageOverlay = damageOverlay;
     this.healthBar = healthBar;
@@ -27,6 +29,7 @@ export class PlayerHealth {
     this.controls = controls;
     this.checkCollision = checkCollision;
     this.onRespawn = onRespawn;
+    this.getRespawnPosition = getRespawnPosition;
   }
 
   public getHp(): number {
@@ -89,7 +92,10 @@ export class PlayerHealth {
     this.isInvulnerable = false;
 
     // Teleport to spawn
-    this.controls.object.position.set(8, 40, 8);
+    const respawnPos = this.getRespawnPosition
+      ? this.getRespawnPosition()
+      : new THREE.Vector3(8, 40, 8);
+    this.controls.object.position.copy(respawnPos);
     
     if (this.onRespawn) {
       this.onRespawn();

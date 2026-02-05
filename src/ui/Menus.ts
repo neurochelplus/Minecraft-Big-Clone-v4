@@ -1,8 +1,11 @@
-import { Game } from "../core/Game";
+﻿import type { IGameRuntime } from "../contracts/game";
 import { worldDB } from "../utils/DB";
+import type { IStorage } from "../contracts/storage";
+import { getSurfaceSpawnPosition } from "../utils/SpawnUtils";
 
 export class Menus {
-  private game: Game;
+  private game: IGameRuntime;
+  private storage: IStorage = worldDB;
 
   private mainMenu: HTMLElement;
   private pauseMenu: HTMLElement;
@@ -27,7 +30,7 @@ export class Menus {
   private cbShadows: HTMLInputElement;
   private cbClouds: HTMLInputElement;
 
-  constructor(game: Game) {
+  constructor(game: IGameRuntime) {
     this.game = game;
 
     this.mainMenu = document.getElementById("main-menu")!;
@@ -74,7 +77,7 @@ export class Menus {
   }
 
   private async checkSaveState() {
-    const hasSave = await worldDB.hasSavedData();
+    const hasSave = await this.storage.hasSavedData();
     this.btnContinue.disabled = !hasSave;
   }
 
@@ -139,152 +142,165 @@ export class Menus {
     this.bgVideo.style.display = "block"; // Show video
     this.crosshair.style.display = "none";
 
-    this.menuMusic.play().catch(() => {});
+    if (!this.game.renderer.getIsMobile()) {
+      // Show cursor
+      document.exitPointerLock();
+    }
 
+    // Hide mobile UI
     if (this.mobileUi) this.mobileUi.style.display = "none";
-
-    this.game.renderer.controls.unlock();
   }
 
   public showPauseMenu() {
     this.game.gameState.setPaused(true);
+
     this.pauseMenu.style.display = "flex";
     this.mainMenu.style.display = "none";
     this.settingsMenu.style.display = "none";
-    this.game.renderer.controls.unlock();
+    this.inventoryMenu.style.display = "none";
+    this.uiContainer.style.display = "none";
+    this.bgVideo.style.display = "none"; // Hide video when in-game
     this.crosshair.style.display = "none";
 
-    // PC-specific Cooldown to match browser Pointer Lock security delay (~1.3s)
     if (!this.game.renderer.getIsMobile()) {
-      this.btnResume.style.pointerEvents = "none";
-      this.btnResume.style.opacity = "0.5";
-      this.btnResume.innerText = "Ждите...";
+      document.exitPointerLock();
+    }
 
-      setTimeout(() => {
-        // Only restore if we are still in the menu (though harmless if not)
-        if (this.pauseMenu.style.display === "flex") {
-          this.btnResume.style.pointerEvents = "auto";
-          this.btnResume.style.opacity = "1";
-          this.btnResume.innerText = "Продолжить";
-        }
-      }, 1300);
+    // Hide mobile UI
+    if (this.mobileUi) this.mobileUi.style.display = "none";
+  }
+
+  private showSettingsMenu(parent: HTMLElement) {
+    this.settingsMenu.style.display = "flex";
+    this.mainMenu.style.display = "none";
+    this.pauseMenu.style.display = "none";
+    this.inventoryMenu.style.display = "none";
+    this.uiContainer.style.display = "none";
+    this.bgVideo.style.display = "none";
+    this.crosshair.style.display = "none";
+
+    if (!this.game.renderer.getIsMobile()) {
+      document.exitPointerLock();
+    }
+
+    if (parent === this.mainMenu) {
+      this.btnSettingsMain.style.display = "none";
+    } else {
+      this.btnSettingsMain.style.display = "block";
+    }
+  }
+
+  private hideSettingsMenu() {
+    this.settingsMenu.style.display = "none";
+    this.bgVideo.style.display = "none";
+
+    if (!this.game.renderer.getIsMobile()) {
+      document.exitPointerLock();
+    }
+
+    if (this.game.gameState.getGameStarted()) {
+      this.pauseMenu.style.display = "flex";
+    } else {
+      this.mainMenu.style.display = "flex";
+      this.bgVideo.style.display = "block";
+    }
+  }
+
+  public async startGame(loadSave: boolean) {
+    this.game.gameState.setPaused(false);
+    this.game.gameState.setGameStarted(true);
+
+    this.mainMenu.style.display = "none";
+    this.pauseMenu.style.display = "none";
+    this.settingsMenu.style.display = "none";
+    this.inventoryMenu.style.display = "none";
+    this.uiContainer.style.display = "block";
+    this.bgVideo.style.display = "none";
+    this.crosshair.style.display = "block";
+
+    if (this.menuMusic) {
+      this.menuMusic.pause();
+      this.menuMusic.currentTime = 0;
+    }
+
+    // Request pointer lock immediately while still in user gesture context.
+    if (!this.game.renderer.getIsMobile()) {
+      if (this.game.renderer.controls.isLocked !== true) {
+        document.body.focus();
+        this.game.renderer.controls.lock();
+      }
+    } else if (this.mobileUi) {
+      this.mobileUi.style.display = "block";
+    }
+
+    if (loadSave) {
+      const data = await this.game.world.loadWorld();
+      const spawnX =
+        data.playerPosition?.x ??
+        this.game.renderer.controls.object.position.x;
+      const spawnZ =
+        data.playerPosition?.z ??
+        this.game.renderer.controls.object.position.z;
+
+      if (data.inventory) {
+        this.game.inventory.deserialize(data.inventory);
+        this.game.inventoryUI.refresh();
+        if (this.game.inventoryUI.onInventoryChange)
+          this.game.inventoryUI.onInventoryChange();
+      }
+
+      const cx = Math.floor(spawnX / 32);
+      const cz = Math.floor(spawnZ / 32);
+      await this.game.world.waitForChunk(cx, cz);
+
+      const safeSpawn = getSurfaceSpawnPosition(
+        this.game.world,
+        spawnX,
+        spawnZ,
+      );
+      this.game.renderer.controls.object.position.copy(safeSpawn);
+    } else {
+      await this.game.world.deleteWorld();
+      await this.game.world.loadChunk(0, 0);
+
+      const spawnX = this.game.renderer.controls.object.position.x;
+      const spawnZ = this.game.renderer.controls.object.position.z;
+      const cx = Math.floor(spawnX / 32);
+      const cz = Math.floor(spawnZ / 32);
+      await this.game.world.waitForChunk(cx, cz);
+
+      const safeSpawn = getSurfaceSpawnPosition(
+        this.game.world,
+        spawnX,
+        spawnZ,
+      );
+      this.game.renderer.controls.object.position.copy(safeSpawn);
     }
   }
 
   public hidePauseMenu() {
     this.game.gameState.setPaused(false);
     this.pauseMenu.style.display = "none";
-    this.settingsMenu.style.display = "none";
+    this.bgVideo.style.display = "none";
+    this.inventoryMenu.style.display = "none";
+    this.uiContainer.style.display = "block";
     this.crosshair.style.display = "block";
 
-    this.game.resetTime();
+    if (this.game.gameState.getGameStarted()) {
+      if (!this.game.renderer.getIsMobile()) {
+        this.game.renderer.controls.lock();
+      } else if (this.mobileUi) {
+        this.mobileUi.style.display = "block";
+      }
+    }
   }
 
   public togglePauseMenu() {
-    if (!this.game.gameState.getGameStarted()) return;
-
-    if (this.settingsMenu.style.display === "flex") {
-      this.hideSettingsMenu();
-      return;
-    }
-
-    if (this.game.gameState.getPaused()) {
+    if (this.pauseMenu.style.display === "flex") {
       this.hidePauseMenu();
     } else {
       this.showPauseMenu();
     }
   }
-
-  private showSettingsMenu(fromMenu: HTMLElement) {
-    this.game.gameState.setPreviousMenu(fromMenu);
-    fromMenu.style.display = "none";
-    this.settingsMenu.style.display = "flex";
-  }
-
-  private hideSettingsMenu() {
-    this.settingsMenu.style.display = "none";
-    const prev = this.game.gameState.getPreviousMenu();
-    if (prev) {
-      prev.style.display = "flex";
-    } else {
-      this.showMainMenu();
-    }
-  }
-
-  private async startGame(loadSave: boolean) {
-    if (!this.game.renderer.getIsMobile()) {
-      this.game.renderer.controls.lock();
-    }
-
-    this.btnNewGame.innerText = "Загрузка...";
-    this.btnContinue.innerText = "Загрузка...";
-
-    try {
-      if (!loadSave) {
-        await this.game.world.deleteWorld();
-        this.game.player.health.respawn();
-
-        // Calculate spawn position on ground
-        const spawnX = 8;
-        const spawnZ = 20;
-
-        // Ensure chunk is generated so we know about trees
-        const cx = Math.floor(spawnX / 32);
-        const cz = Math.floor(spawnZ / 32);
-        await this.game.world.loadChunk(cx, cz);
-
-        const topY = this.game.world.getTopY(spawnX, spawnZ);
-
-        // +3 to stand on top and avoid head stuck in leaves
-        // +0.5 to center on the block and avoid clipping neighbors
-        this.game.renderer.controls.object.position.set(
-          spawnX + 0.5,
-          topY + 3,
-          spawnZ + 0.5,
-        );
-
-        this.game.inventory.clear();
-        this.game.inventoryUI.refresh();
-      } else {
-        const data = await this.game.world.loadWorld();
-        if (data.playerPosition) {
-          // Add small offset to Y to prevent getting stuck in blocks
-          const safePos = data.playerPosition.clone();
-          safePos.y += 0.1;
-          this.game.renderer.controls.object.position.copy(safePos);
-          this.game.player.physics.setVelocity({ x: 0, y: 0, z: 0 } as any); // Reset velocity
-        }
-        if (data.inventory) {
-          this.game.inventory.deserialize(data.inventory);
-          this.game.inventoryUI.refresh();
-        }
-      }
-
-      this.game.gameState.setGameStarted(true);
-      this.game.gameState.setPaused(false);
-      this.game.resetTime();
-
-      this.mainMenu.style.display = "none";
-      this.pauseMenu.style.display = "none";
-      this.settingsMenu.style.display = "none";
-      this.uiContainer.style.display = "flex";
-      this.bgVideo.style.display = "none"; // Hide video
-      this.menuMusic.pause();
-      this.menuMusic.currentTime = 0;
-      this.crosshair.style.display = "block";
-
-      if (this.mobileUi && this.game.renderer.getIsMobile()) {
-        this.mobileUi.style.display = "block";
-        document.documentElement.requestFullscreen().catch(() => {});
-      }
-    } catch (e) {
-      console.error("Failed to start game:", e);
-      alert("Error starting game: " + e);
-      if (!this.game.renderer.getIsMobile())
-        this.game.renderer.controls.unlock();
-    } finally {
-      this.btnNewGame.innerText = "Новая Игра";
-      this.btnContinue.innerText = "Продолжить";
-    }
-  }
 }
+

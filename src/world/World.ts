@@ -1,13 +1,24 @@
 import * as THREE from "three";
+import type { IWorld } from "../contracts/world";
 import { worldDB } from "../utils/DB";
+import type { IStorage } from "../contracts/storage";
+import type { InventorySlot } from "../contracts/inventory";
+import type { IFurnaceManager } from "../contracts/crafting";
 import { BLOCK } from "../constants/Blocks";
 import { ChunkManager } from "./ChunkManager";
 
-export class World {
-  private chunkManager: ChunkManager;
+type WorldMeta = {
+  seed?: number;
+  position: { x: number; y: number; z: number };
+  inventory?: InventorySlot[];
+};
 
-  constructor(scene: THREE.Scene) {
-    this.chunkManager = new ChunkManager(scene);
+export class World implements IWorld {
+  private chunkManager: ChunkManager;
+  private storage: IStorage = worldDB;
+
+  constructor(scene: THREE.Scene, furnaceManager?: IFurnaceManager) {
+    this.chunkManager = new ChunkManager(scene, undefined, furnaceManager);
   }
 
   public get noiseTexture(): THREE.DataTexture {
@@ -17,11 +28,11 @@ export class World {
   // Persistence
   public async loadWorld(): Promise<{
     playerPosition?: THREE.Vector3;
-    inventory?: any;
+    inventory?: InventorySlot[];
   }> {
     await this.chunkManager.init();
 
-    const meta = await worldDB.get("player", "meta");
+    const meta = await this.storage.get<WorldMeta>("player", "meta");
 
     if (meta?.seed !== undefined) {
       this.chunkManager.setSeed(meta.seed);
@@ -44,11 +55,11 @@ export class World {
 
   public async saveWorld(playerData: {
     position: THREE.Vector3;
-    inventory: any;
+    inventory: InventorySlot[];
   }) {
     console.log("Saving world...");
 
-    await worldDB.set(
+    await this.storage.set(
       "player",
       {
         position: {
@@ -68,7 +79,7 @@ export class World {
 
   public async deleteWorld() {
     console.log("Deleting world...");
-    await worldDB.init();
+    await this.storage.init();
     await this.chunkManager.clear();
     console.log("World deleted.");
   }
@@ -148,18 +159,20 @@ export class World {
 
       case BLOCK.WOOD:
       case BLOCK.PLANKS:
-        let multiplier = 1;
-        if (
-          toolId === BLOCK.WOODEN_AXE ||
-          toolId === BLOCK.STONE_AXE ||
-          toolId === BLOCK.IRON_AXE
-        ) {
-          if (toolId === BLOCK.IRON_AXE) multiplier = 8;
-          else if (toolId === BLOCK.STONE_AXE) multiplier = 4;
-          else multiplier = 2;
+        {
+          let multiplier = 1;
+          if (
+            toolId === BLOCK.WOODEN_AXE ||
+            toolId === BLOCK.STONE_AXE ||
+            toolId === BLOCK.IRON_AXE
+          ) {
+            if (toolId === BLOCK.IRON_AXE) multiplier = 8;
+            else if (toolId === BLOCK.STONE_AXE) multiplier = 4;
+            else multiplier = 2;
+          }
+          time = 3000 / multiplier;
+          break;
         }
-        time = 3000 / multiplier;
-        break;
 
       case BLOCK.BEDROCK:
         return Infinity;
