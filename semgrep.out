@@ -1,0 +1,101 @@
+﻿semgrep : 'charmap' codec can't encode character '\u202a' in position 246999: character maps to <undefined>
+At line:2 char:60
++ ... OR='never'; semgrep --config=p/ci --exclude "**/*.md" --exclude "**/* ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ('charmap' codec... to <undefined>:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Traceback (most recent call last):
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\commands\wrapper.py", line 4
+9, in wrapper
+    func(*args, **kwargs)
+    ~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\commands\scan.py", line 1049
+, in scan
+    ) = semgrep.run_scan.run_scan(
+        ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dump_command_for_core=dump_command_for_core,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+        x_dump_symbol_analysis=x_dump_symbol_analysis,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\telemetry.py", line 398, in 
+inner
+    return f(*args, **kwargs)
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\simple_profiling.py", line 1
+00, in wrapper
+    result = func(*args, **kwargs)
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\run_scan.py", line 1245, in 
+run_scan
+    configs_obj, config_errors = Config.from_config_list(
+                                 ~~~~~~~~~~~~~~~~~~~~~~~^
+        config_strs or [],
+        ^^^^^^^^^^^^^^^^^^
+        project_url,
+        ^^^^^^^^^^^^
+        no_python_schema_validation=x_no_python_schema_validation,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\telemetry.py", line 398, in 
+inner
+    return f(*args, **kwargs)
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\config_resolver.py", line 64
+4, in from_config_list
+    resolved_config, config_errors = resolve_config(
+                                     ~~~~~~~~~~~~~~^
+        config,
+        ^^^^^^^
+    ...<2 lines>...
+        no_python_schema_validation=no_python_schema_validation,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\telemetry.py", line 398, in 
+inner
+    return f(*args, **kwargs)
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\config_resolver.py", line 55
+3, in resolve_config
+    config, errors = parse_config_files(
+                     ~~~~~~~~~~~~~~~~~~^
+        config_loader.load_config(),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        force_jsonschema=force_jsonschema,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        no_python_schema_validation=no_python_schema_validation,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\telemetry.py", line 398, in 
+inner
+    return f(*args, **kwargs)
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\config_resolver.py", line 52
+6, in parse_config_files
+    config_data, config_errors = future.result()
+                                 ~~~~~~~~~~~~~^^
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\concurrent\futures\_base.py", line 443, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\concurrent\futures\_base.py", line 395, in __get_r
+esult
+    raise self._exception
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\concurrent\futures\thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\concurrent\futures\thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\config_resolver.py", line 48
+1, in context_aware_parse_config_string
+    return parse_config_string(*args, **kwargs)
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\telemetry.py", line 398, in 
+inner
+    return f(*args, **kwargs)
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\site-packages\semgrep\config_resolver.py", line 97
+9, in parse_config_string
+    fp.write(contents)
+    ~~~~~~~~^^^^^^^^^^
+  File "C:\Users\Zaikana\AppData\Local\Programs\Python\Python314\Lib\encodings\cp1251.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u202a' in position 246999: character maps to <undefined>

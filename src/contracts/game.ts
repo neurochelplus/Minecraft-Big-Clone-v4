@@ -4,6 +4,7 @@ import type { IPlayerRuntime } from "./player";
 import type { IGameState } from "./gameState";
 import type { IInventoryUI } from "./ui";
 import type { IControls } from "./controls";
+import type { IFurnaceManager } from "./crafting";
 
 export interface IGameRuntime {
   renderer: {
@@ -21,6 +22,7 @@ export interface IGameRuntime {
   };
   inventory: IInventory;
   inventoryUI: IInventoryUI;
+  furnaceManager: IFurnaceManager;
   player: IPlayerRuntime;
   blockBreaking: {
     start(world: IWorld): void;
@@ -31,4 +33,5 @@ export interface IGameRuntime {
   };
   isAttackPressed: boolean;
   isUsePressed: boolean;
+  resetTime(): void;
 }

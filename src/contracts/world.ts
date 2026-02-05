@@ -1,5 +1,6 @@
 import type { DataTexture } from "three";
 import type { InventorySlot } from "./inventory";
+import type { ProfilerHook } from "./profiler";
 
 export type Vec3 = {
   x: number;
@@ -23,8 +24,14 @@ export interface IWorldWrite {
 }
 
 export interface IWorldRuntime {
-  update(playerPos: Vec3): void;
+  update(playerPos: Vec3, viewDir?: Vec3, profiler?: ProfilerHook): void;
   loadChunk(cx: number, cz: number): Promise<void>;
+  preGenerateAround(
+    spawnX: number,
+    spawnZ: number,
+    radius: number,
+    options?: { budgetMs?: number; onProgress?: (progress: number) => void },
+  ): Promise<void>;
 }
 
 export interface IWorldPersistence {

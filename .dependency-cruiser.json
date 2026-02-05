@@ -21,7 +21,7 @@
     {
       "name": "no-initialization-imports",
       "severity": "warn",
-      "from": { "path": "^src/(?!initialization)" },
+      "from": { "path": "^src/(?!initialization|main\\.ts)" },
       "to": { "path": "^src/initialization" }
     }
   ],

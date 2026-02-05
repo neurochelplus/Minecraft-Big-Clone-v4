@@ -16,6 +16,8 @@ export class BlockCursor {
   private camera: PerspectiveCamera;
   private scene: Scene;
   private controls: IControls;
+  private lastUpdateAt = 0;
+  private readonly UPDATE_INTERVAL_MS = 33;
   private readonly MAX_DISTANCE = 6;
 
   constructor(
@@ -27,6 +29,7 @@ export class BlockCursor {
     this.scene = scene;
     this.controls = controls;
     this.raycaster = new THREE.Raycaster();
+    this.raycaster.far = this.MAX_DISTANCE;
 
     // Create cursor mesh
     const cursorGeometry = new THREE.BoxGeometry(1.01, 1.01, 1.01);
@@ -41,8 +44,14 @@ export class BlockCursor {
   }
 
   public update(world: IWorld): void {
+    const now = performance.now();
+    if (now - this.lastUpdateAt < this.UPDATE_INTERVAL_MS) {
+      return;
+    }
+    this.lastUpdateAt = now;
+
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-    const intersects = this.raycaster.intersectObjects(this.scene.children);
+    const intersects = this.raycaster.intersectObjects(this.scene.children, false);
     
     const hit = intersects.find((i) => {
       const obj = i.object as SelectableObject;

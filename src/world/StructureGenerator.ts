@@ -1,31 +1,50 @@
 import { BLOCK } from "../constants/Blocks";
+import type { RngLike } from "../contracts/chunks";
 import { TerrainGenerator } from "./TerrainGenerator";
 
 export class StructureGenerator {
   private terrainGen: TerrainGenerator;
+  private rng: RngLike;
 
-  constructor(terrainGen: TerrainGenerator) {
+  constructor(terrainGen: TerrainGenerator, rng: RngLike) {
     this.terrainGen = terrainGen;
+    this.rng = rng;
   }
 
   public generateTrees(
     data: Uint8Array,
     chunkSize: number,
     chunkHeight: number,
+    startX: number,
+    startZ: number,
     getBlockIndex: (x: number, y: number, z: number) => number,
   ) {
+    const heights = new Int16Array(chunkSize * chunkSize);
+    heights.fill(-1);
     for (let x = 2; x < chunkSize - 2; x++) {
       for (let z = 2; z < chunkSize - 2; z++) {
-        const height = this.findSurfaceHeight(
-          data,
-          chunkHeight,
-          x,
-          z,
-          getBlockIndex,
-        );
+        const index2d = x * chunkSize + z;
+        let height = heights[index2d];
+        if (height < 0) {
+          const worldX = startX + x;
+          const worldZ = startZ + z;
+          height = this.terrainGen.getTerrainHeight(worldX, worldZ);
+          if (height >= chunkHeight) height = chunkHeight - 1;
+          const surfaceIndex = getBlockIndex(x, height, z);
+          if (data[surfaceIndex] !== BLOCK.GRASS) {
+            height = this.findSurfaceHeight(
+              data,
+              chunkHeight,
+              x,
+              z,
+              getBlockIndex,
+            );
+          }
+          heights[index2d] = height;
+        }
         if (height > 0) {
           const index = getBlockIndex(x, height, z);
-          if (data[index] === BLOCK.GRASS && Math.random() < 0.01) {
+          if (data[index] === BLOCK.GRASS && this.rng.next() < 0.01) {
             this.placeTree(data, chunkSize, chunkHeight, x, height + 1, z, getBlockIndex);
           }
         }
@@ -57,7 +76,7 @@ export class StructureGenerator {
     startZ: number,
     getBlockIndex: (x: number, y: number, z: number) => number,
   ) {
-    const trunkHeight = Math.floor(Math.random() * 2) + 4; // 4-5 blocks
+    const trunkHeight = this.rng.nextInt(2) + 4; // 4-5 blocks
 
     // Trunk
     for (let y = 0; y < trunkHeight; y++) {
@@ -83,7 +102,7 @@ export class StructureGenerator {
           const dx = x - startX;
           const dz = z - startZ;
           if (Math.abs(dx) === radius && Math.abs(dz) === radius) {
-            if (Math.random() < 0.4) continue;
+            if (this.rng.next() < 0.4) continue;
           }
 
           if (
@@ -148,15 +167,15 @@ export class StructureGenerator {
     getBlockIndex: (x: number, y: number, z: number) => number,
   ) {
     for (let i = 0; i < attempts; i++) {
-      let vx = Math.floor(Math.random() * chunkSize);
-      let vz = Math.floor(Math.random() * chunkSize);
+      let vx = this.rng.nextInt(chunkSize);
+      let vz = this.rng.nextInt(chunkSize);
 
       const worldX = startX + vx;
       const worldZ = startZ + vz;
       const surfaceHeight = this.terrainGen.getTerrainHeight(worldX, worldZ);
       const maxStoneY = Math.max(2, surfaceHeight - 3);
 
-      let vy = Math.floor(Math.random() * (maxStoneY - 1)) + 1;
+      let vy = this.rng.nextInt(maxStoneY - 1) + 1;
 
       let index = getBlockIndex(vx, vy, vz);
       if (data[index] === BLOCK.STONE) {
@@ -165,7 +184,7 @@ export class StructureGenerator {
         let currentLen = 1;
         let fails = 0;
         while (currentLen < targetLen && fails < 10) {
-          const dir = Math.floor(Math.random() * 6);
+          const dir = this.rng.nextInt(6);
           let nx = vx,
             ny = vy,
             nz = vz;
@@ -190,7 +209,7 @@ export class StructureGenerator {
               data[index] = blockType;
               vx = nx;
               vy = ny;
-              nz = vz;
+              vz = nz;
               currentLen++;
             } else if (data[index] === blockType) {
               vx = nx;

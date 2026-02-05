@@ -6,10 +6,11 @@ import type { InventorySlot } from "../contracts/inventory";
 import type { IFurnaceManager } from "../contracts/crafting";
 import { BLOCK } from "../constants/Blocks";
 import { ChunkManager } from "./ChunkManager";
+import type { ProfilerHook } from "../contracts/profiler";
 
 type WorldMeta = {
   seed?: number;
-  position: { x: number; y: number; z: number };
+  position?: { x: number; y: number; z: number };
   inventory?: InventorySlot[];
 };
 
@@ -41,16 +42,26 @@ export class World implements IWorld {
       console.log(`No seed found, using current: ${this.chunkManager.getSeed()}`);
     }
 
-    return meta
-      ? {
-          playerPosition: new THREE.Vector3(
-            meta.position.x,
-            meta.position.y,
-            meta.position.z,
-          ),
-          inventory: meta.inventory,
-        }
-      : {};
+    if (meta?.seed === undefined) {
+      await this.storage.set(
+        "player",
+        { ...meta, seed: this.chunkManager.getSeed() },
+        "meta",
+      );
+    }
+
+    if (meta?.position) {
+      return {
+        playerPosition: new THREE.Vector3(
+          meta.position.x,
+          meta.position.y,
+          meta.position.z,
+        ),
+        inventory: meta.inventory,
+      };
+    }
+
+    return meta?.inventory ? { inventory: meta.inventory } : {};
   }
 
   public async saveWorld(playerData: {
@@ -81,12 +92,17 @@ export class World implements IWorld {
     console.log("Deleting world...");
     await this.storage.init();
     await this.chunkManager.clear();
+    this.chunkManager.dispose();
     console.log("World deleted.");
   }
 
   // Chunk operations
-  public update(playerPos: THREE.Vector3) {
-    this.chunkManager.update(playerPos);
+  public update(
+    playerPos: THREE.Vector3,
+    viewDir?: THREE.Vector3,
+    profiler?: ProfilerHook,
+  ) {
+    this.chunkManager.update(playerPos, viewDir, profiler);
   }
 
   public async loadChunk(cx: number, cz: number) {
@@ -95,6 +111,15 @@ export class World implements IWorld {
 
   public async waitForChunk(cx: number, cz: number): Promise<void> {
     await this.chunkManager.waitForChunk(cx, cz);
+  }
+
+  public async preGenerateAround(
+    spawnX: number,
+    spawnZ: number,
+    radius: number,
+    options?: { budgetMs?: number; onProgress?: (progress: number) => void },
+  ): Promise<void> {
+    await this.chunkManager.preGenerateAround(spawnX, spawnZ, radius, options);
   }
 
   public isChunkLoaded(x: number, z: number): boolean {

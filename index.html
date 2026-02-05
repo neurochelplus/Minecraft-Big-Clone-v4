@@ -13,10 +13,26 @@
         />
     </head>
     <body>
-        <div id="loading-screen">
-            <h1 style="font-size: 30px; margin-bottom: 20px">Загрузка...</h1>
-            <div id="loading-bar-container">
-                <div id="loading-bar-inner"></div>
+        <div id="loading-screen" class="loading-screen">
+            <div class="loading-shell">
+                <div class="loading-logo">QubeForge</div>
+                <div class="loading-subtitle">Game loading</div>
+                <div class="loading-bar-container">
+                    <div id="loading-bar-inner" class="loading-bar-inner"></div>
+                </div>
+                <div id="loading-progress-text" class="loading-progress-text">0%</div>
+                <div class="loading-tip">Bootstrapping systems</div>
+            </div>
+        </div>
+        <div id="world-loading-screen" class="loading-screen">
+            <div class="loading-shell">
+                <div class="loading-logo">QubeForge</div>
+                <div class="loading-subtitle">World loading</div>
+                <div class="loading-bar-container">
+                    <div id="world-loading-bar-inner" class="loading-bar-inner"></div>
+                </div>
+                <div id="world-loading-progress-text" class="loading-progress-text">0%</div>
+                <div class="loading-tip">Generating chunks</div>
             </div>
         </div>
         <script>

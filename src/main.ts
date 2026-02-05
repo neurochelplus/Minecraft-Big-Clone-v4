@@ -1,6 +1,6 @@
 import { initToolTextures } from "./constants/ToolTextures";
 import { GameInitializer } from "./initialization/GameInitializer";
-import { LoadingScreen } from "./initialization/LoadingScreen";
+import { LoadingScreen } from "./ui/LoadingScreen";
 import { NoiseGenerator } from "./initialization/NoiseGenerator";
 import { AutoSave } from "./ui/AutoSave";
 import { InventoryController } from "./ui/InventoryController";
@@ -8,17 +8,24 @@ import { KeyboardHandler } from "./input/KeyboardHandler";
 import { MouseHandler } from "./input/MouseHandler";
 import { PointerLockHandler } from "./input/PointerLockHandler";
 import { Game } from "./core/Game";
-import { getSurfaceSpawnPosition } from "./utils/SpawnUtils";
 import "./style.css";
+
+// Loading Screen
+const loadingScreen = new LoadingScreen();
+loadingScreen.startManual();
+loadingScreen.setProgress(0.02);
 
 // Initialize Tool Textures
 initToolTextures();
+loadingScreen.setProgress(0.12);
 
 // Generate CSS Noise Texture
 NoiseGenerator.generate();
+loadingScreen.setProgress(0.2);
 
 // Initialize all game systems
 const systems = GameInitializer.initialize();
+loadingScreen.setProgress(0.7);
 
 // Create Game instance
 const game = new Game(
@@ -137,32 +144,5 @@ autoSave.start();
 window.addEventListener("toggle-inventory", () => inventoryController.toggle(false));
 window.addEventListener("toggle-pause-menu", () => game.menus.togglePauseMenu());
 
-// Loading Screen
-const loadingScreen = new LoadingScreen();
-
-// Load World Data
-systems.world.loadWorld().then(async (data) => {
-  const spawnX =
-    data.playerPosition?.x ?? systems.controls.object.position.x;
-  const spawnZ =
-    data.playerPosition?.z ?? systems.controls.object.position.z;
-
-  if (data.inventory) {
-    systems.inventory.deserialize(data.inventory);
-    systems.inventoryUI.refresh();
-  }
-
-  // Load Furnaces
-  await systems.furnaceManager.load();
-
-  // Ensure spawn chunk is loaded
-  const cx = Math.floor(spawnX / 32);
-  const cz = Math.floor(spawnZ / 32);
-  await systems.world.waitForChunk(cx, cz);
-
-  const safeSpawn = getSurfaceSpawnPosition(systems.world, spawnX, spawnZ);
-  systems.controls.object.position.copy(safeSpawn);
-});
-
-// Start Loading Screen
-loadingScreen.start(() => game.start());
+loadingScreen.setProgress(0.95);
+loadingScreen.finish(() => game.start());

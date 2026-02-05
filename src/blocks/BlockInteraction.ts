@@ -77,6 +77,7 @@ export class BlockInteraction {
     this.getMobs = getMobs;
     this.onConsumeItem = onConsumeItem;
     this.raycaster = new THREE.Raycaster();
+    this.raycaster.far = this.MAX_DISTANCE;
   }
 
   public update(delta: number, isUsePressed: boolean) {
@@ -155,7 +156,7 @@ export class BlockInteraction {
     }
 
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-    const intersects = this.raycaster.intersectObjects(this.scene.children);
+    const intersects = this.raycaster.intersectObjects(this.scene.children, false);
     const hit = intersects.find((i) => {
       const obj = i.object as SelectableObject;
       return (

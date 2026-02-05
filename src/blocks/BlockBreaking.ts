@@ -51,6 +51,7 @@ export class BlockBreaking {
     this.onBlockBreak = onBlockBreak;
     this.cursorMesh = cursorMesh;
     this.raycaster = new THREE.Raycaster();
+    this.raycaster.far = 6;
 
     // Create crack texture
     this.crackTexture = this.createCrackTexture();
@@ -120,7 +121,7 @@ export class BlockBreaking {
   public start(world: IWorld): void {
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
     const hit = this.raycaster
-      .intersectObjects(this.scene.children)
+      .intersectObjects(this.scene.children, false)
       .find((i) => {
         const obj = i.object as SelectableObject;
         return (
@@ -165,7 +166,7 @@ export class BlockBreaking {
     // Check if still looking at same block
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
     const hit = this.raycaster
-      .intersectObjects(this.scene.children)
+      .intersectObjects(this.scene.children, false)
       .find((i) => {
         const obj = i.object as SelectableObject;
         return (
