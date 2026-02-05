@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { ITEM_ENTITY } from "../constants/GameConstants";
 import { BlockColors } from "../constants/BlockColors";
-import { TextureAtlas } from "../world/TextureAtlas";
+import { TextureAtlas } from "../world/generation/TextureAtlas";
 import { BLOCK } from "../constants/Blocks";
 
 export class ItemRenderer {

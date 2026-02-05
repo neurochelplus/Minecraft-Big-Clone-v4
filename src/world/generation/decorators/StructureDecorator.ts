@@ -1,6 +1,6 @@
 import type { ChunkData, ChunkGenContext, IChunkDecorator } from "../../../contracts/chunks";
-import { StructureGenerator } from "../../StructureGenerator";
-import { TerrainGenerator } from "../../TerrainGenerator";
+import { StructureGenerator } from "../StructureGenerator";
+import { TerrainGenerator } from "../TerrainGenerator";
 
 export class StructureDecorator implements IChunkDecorator {
   private terrainGen: TerrainGenerator;
@@ -24,8 +24,6 @@ export class StructureDecorator implements IChunkDecorator {
       chunk.data,
       ctx.chunkSize,
       ctx.chunkHeight,
-      ctx.startX,
-      ctx.startZ,
       ctx.getBlockIndex,
     );
   }

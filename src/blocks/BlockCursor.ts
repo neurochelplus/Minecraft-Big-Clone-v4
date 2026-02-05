@@ -1,35 +1,24 @@
-import * as THREE from "three";
-import { PerspectiveCamera } from "three";
-import { Scene } from "three";
-import type { IWorld } from "../contracts/world";
-import type { IControls } from "../contracts/controls";
-
-type SelectableObject = THREE.Object3D & {
-  isMesh?: boolean;
-  isItem?: boolean;
-  parent?: THREE.Object3D & { isMob?: boolean };
-};
+import * as THREE from 'three';
+import { PerspectiveCamera } from 'three';
+import { Scene } from 'three';
 
 export class BlockCursor {
   private mesh: THREE.Mesh;
   private raycaster: THREE.Raycaster;
   private camera: PerspectiveCamera;
   private scene: Scene;
-  private controls: IControls;
-  private lastUpdateAt = 0;
-  private readonly UPDATE_INTERVAL_MS = 33;
+  private controls: PointerLockControls; // PointerLockControls
   private readonly MAX_DISTANCE = 6;
 
   constructor(
     scene: Scene,
     camera: PerspectiveCamera,
-    controls: IControls
+    controls: PointerLockControls
   ) {
     this.camera = camera;
     this.scene = scene;
     this.controls = controls;
     this.raycaster = new THREE.Raycaster();
-    this.raycaster.far = this.MAX_DISTANCE;
 
     // Create cursor mesh
     const cursorGeometry = new THREE.BoxGeometry(1.01, 1.01, 1.01);
@@ -43,26 +32,17 @@ export class BlockCursor {
     return this.mesh;
   }
 
-  public update(world: IWorld): void {
-    const now = performance.now();
-    if (now - this.lastUpdateAt < this.UPDATE_INTERVAL_MS) {
-      return;
-    }
-    this.lastUpdateAt = now;
-
+  public update(world: any): void {
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-    const intersects = this.raycaster.intersectObjects(this.scene.children, false);
+    const intersects = this.raycaster.intersectObjects(this.scene.children);
     
-    const hit = intersects.find((i) => {
-      const obj = i.object as SelectableObject;
-      return (
-        i.object !== this.mesh &&
-        i.object !== this.controls.object &&
-        obj.isMesh &&
-        !obj.isItem &&
-        !obj.parent?.isMob
-      );
-    });
+    const hit = intersects.find(i => 
+      i.object !== this.mesh && 
+      i.object !== this.controls.object && 
+      (i.object as any).isMesh && 
+      !(i.object as any).isItem && 
+      !(i.object.parent as any)?.isMob
+    );
 
     if (hit && hit.distance < this.MAX_DISTANCE) {
       const p = hit.point.clone().add(this.raycaster.ray.direction.clone().multiplyScalar(0.01));

@@ -1,10 +1,11 @@
-import type { IGameState } from "../contracts/gameState";
-import type { IPlayerInput } from "../contracts/player";
-import type { IBlockBreaking, IBlockInteraction } from "../contracts/blocks";
-import type { IWorld } from "../contracts/world";
-import type { IInventory } from "../contracts/inventory";
-import type { IInventoryUI } from "../contracts/ui";
-import type { IControls } from "../contracts/controls";
+import { GameState } from "../core/GameState";
+import { Player } from "../player/Player";
+import { BlockBreaking } from "../blocks/BlockBreaking";
+import { BlockInteraction } from "../blocks/BlockInteraction";
+import { World } from "../world/World";
+import { Inventory } from "../inventory/Inventory";
+import { InventoryUI } from "../inventory/InventoryUI";
+import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 
 /**
  * Handles mouse input for attacking, placing blocks, and hotbar scrolling
@@ -12,26 +13,38 @@ import type { IControls } from "../contracts/controls";
 export class MouseHandler {
   public isAttackPressed = false;
   public isUsePressed = false;
-  private gameState: IGameState;
-  private player: IPlayerInput;
-  private blockBreaking: IBlockBreaking;
-  private blockInteraction: IBlockInteraction;
-  private world: IWorld;
-  private inventory: IInventory;
-  private inventoryUI: IInventoryUI;
-  private controls: IControls;
+
+  private gameState: GameState;
+  private player: Player;
+  private blockBreaking: BlockBreaking;
+  private blockInteraction: BlockInteraction;
+  private world: World;
+  private inventory: Inventory;
+  private inventoryUI: InventoryUI;
+  private controls: PointerLockControls;
   private isMobile: boolean;
   private onHotbarChange: () => void;
 
+  private mouseDownHandler = (e: MouseEvent) => this.onMouseDown(e);
+  private mouseUpHandler = () => this.onMouseUp();
+  private wheelHandler = (event: WheelEvent) => {
+    let selected = this.inventory.getSelectedSlot();
+    if (event.deltaY > 0) selected = (selected + 1) % 9;
+    else selected = (selected - 1 + 9) % 9;
+    this.inventory.setSelectedSlot(selected);
+    this.inventoryUI.refresh();
+    this.onHotbarChange();
+  };
+
   constructor(
-    gameState: IGameState,
-    player: IPlayerInput,
-    blockBreaking: IBlockBreaking,
-    blockInteraction: IBlockInteraction,
-    world: IWorld,
-    inventory: IInventory,
-    inventoryUI: IInventoryUI,
-    controls: IControls,
+    gameState: GameState,
+    player: Player,
+    blockBreaking: BlockBreaking,
+    blockInteraction: BlockInteraction,
+    world: World,
+    inventory: Inventory,
+    inventoryUI: InventoryUI,
+    controls: PointerLockControls,
     isMobile: boolean,
     onHotbarChange: () => void,
   ) {
@@ -49,18 +62,15 @@ export class MouseHandler {
   }
 
   private init(): void {
-    document.addEventListener("mousedown", (e) => this.onMouseDown(e));
-    document.addEventListener("mouseup", () => this.onMouseUp());
+    document.addEventListener("mousedown", this.mouseDownHandler);
+    document.addEventListener("mouseup", this.mouseUpHandler);
+    window.addEventListener("wheel", this.wheelHandler);
+  }
 
-    // Hotbar scroll
-    window.addEventListener("wheel", (event) => {
-      let selected = this.inventory.getSelectedSlot();
-      if (event.deltaY > 0) selected = (selected + 1) % 9;
-      else selected = (selected - 1 + 9) % 9;
-      this.inventory.setSelectedSlot(selected);
-      this.inventoryUI.refresh();
-      this.onHotbarChange();
-    });
+  public cleanup(): void {
+    document.removeEventListener("mousedown", this.mouseDownHandler);
+    document.removeEventListener("mouseup", this.mouseUpHandler);
+    window.removeEventListener("wheel", this.wheelHandler);
   }
 
   private onMouseDown(event: MouseEvent): void {

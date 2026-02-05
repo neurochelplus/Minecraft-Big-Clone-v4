@@ -1,33 +1,43 @@
-import type { IGameState } from "../contracts/gameState";
-import type { IPlayerInput } from "../contracts/player";
-import type { IInventory } from "../contracts/inventory";
-import type { IInventoryUI } from "../contracts/ui";
+import { GameState } from "../core/GameState";
+import { Player } from "../player/Player";
+import { Inventory } from "../inventory/Inventory";
+import { InventoryUI } from "../inventory/InventoryUI";
 import { CLI } from "../ui/CLI";
 
 /**
  * Handles keyboard input for player movement and game controls
  */
 export class KeyboardHandler {
-  private gameState: IGameState;
-  private player: IPlayerInput;
-  private inventory: IInventory;
-  private inventoryUI: IInventoryUI;
+  private gameState: GameState;
+  private player: Player;
+  private inventory: Inventory;
+  private inventoryUI: InventoryUI;
   private cli: CLI;
   private onToggleInventory: (useCraftingTable: boolean) => void;
   private onShowPauseMenu: () => void;
   private onHotbarChange: () => void;
-  private onToggleProfiler: () => void;
+
+  private keyDownHandler = (e: KeyboardEvent) => this.onKeyDown(e);
+  private keyUpHandler = (e: KeyboardEvent) => this.onKeyUp(e);
+  private contextMenuHandler = (e: Event) => e.preventDefault();
+  private hotbarKeyHandler = (event: KeyboardEvent) => {
+    const key = parseInt(event.key);
+    if (key >= 1 && key <= 9) {
+      this.inventory.setSelectedSlot(key - 1);
+      this.inventoryUI.refresh();
+      this.onHotbarChange();
+    }
+  };
 
   constructor(
-    gameState: IGameState,
-    player: IPlayerInput,
-    inventory: IInventory,
-    inventoryUI: IInventoryUI,
+    gameState: GameState,
+    player: Player,
+    inventory: Inventory,
+    inventoryUI: InventoryUI,
     cli: CLI,
     onToggleInventory: (useCraftingTable: boolean) => void,
     onShowPauseMenu: () => void,
     onHotbarChange: () => void,
-    onToggleProfiler: () => void,
   ) {
     this.gameState = gameState;
     this.player = player;
@@ -37,24 +47,21 @@ export class KeyboardHandler {
     this.onToggleInventory = onToggleInventory;
     this.onShowPauseMenu = onShowPauseMenu;
     this.onHotbarChange = onHotbarChange;
-    this.onToggleProfiler = onToggleProfiler;
     this.init();
   }
 
   private init(): void {
-    document.addEventListener("keydown", (e) => this.onKeyDown(e));
-    document.addEventListener("keyup", (e) => this.onKeyUp(e));
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+    document.addEventListener("keydown", this.keyDownHandler);
+    document.addEventListener("keyup", this.keyUpHandler);
+    document.addEventListener("contextmenu", this.contextMenuHandler);
+    window.addEventListener("keydown", this.hotbarKeyHandler);
+  }
 
-    // Hotbar number keys
-    window.addEventListener("keydown", (event) => {
-      const key = parseInt(event.key);
-      if (key >= 1 && key <= 9) {
-        this.inventory.setSelectedSlot(key - 1);
-        this.inventoryUI.refresh();
-        this.onHotbarChange();
-      }
-    });
+  public cleanup(): void {
+    document.removeEventListener("keydown", this.keyDownHandler);
+    document.removeEventListener("keyup", this.keyUpHandler);
+    document.removeEventListener("contextmenu", this.contextMenuHandler);
+    window.removeEventListener("keydown", this.hotbarKeyHandler);
   }
 
   private onKeyDown(event: KeyboardEvent): void {
@@ -83,13 +90,11 @@ export class KeyboardHandler {
     }
 
     switch (event.code) {
-      case "F3":
-        event.preventDefault();
-        this.onToggleProfiler();
-        break;
       case "Slash":
         event.preventDefault();
-        this.cli.toggle(true, "/");
+        if (this.cli.isEnabled()) {
+          this.cli.toggle(true, "/");
+        }
         break;
       case "KeyT":
         if (
@@ -98,7 +103,9 @@ export class KeyboardHandler {
           inventoryMenu.style.display !== "flex"
         ) {
           event.preventDefault();
-          this.cli.toggle(true, "");
+          if (this.cli.isEnabled()) {
+            this.cli.toggle(true, "");
+          }
         }
         break;
       case "ArrowUp":
@@ -128,13 +135,11 @@ export class KeyboardHandler {
         if (!this.gameState.getPaused()) this.onToggleInventory(false);
         break;
       case "Escape":
-        {
-          const invMenu = document.getElementById("inventory-menu")!;
-          if (invMenu.style.display === "flex") {
-            this.onToggleInventory(false);
-          } else if (this.gameState.getGameStarted()) {
-            this.onShowPauseMenu();
-          }
+        const invMenu = document.getElementById("inventory-menu")!;
+        if (invMenu.style.display === "flex") {
+          this.onToggleInventory(false);
+        } else if (this.gameState.getGameStarted()) {
+          this.onShowPauseMenu();
         }
         break;
     }

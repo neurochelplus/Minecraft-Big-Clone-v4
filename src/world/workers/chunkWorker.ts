@@ -5,7 +5,7 @@ import { BiomeDecorator } from "../generation/decorators/BiomeDecorator";
 import { CaveDecorator } from "../generation/decorators/CaveDecorator";
 import { StructureDecorator } from "../generation/decorators/StructureDecorator";
 import { PostProcessDecorator } from "../generation/decorators/PostProcessDecorator";
-import { TerrainGenerator } from "../TerrainGenerator";
+import { TerrainGenerator } from "../generation/TerrainGenerator";
 import { RngStreams } from "../../utils/Rng";
 import { ChunkMeshDataBuilder } from "../mesh/ChunkMeshDataBuilder";
 import { BLOCK } from "../../constants/Blocks";

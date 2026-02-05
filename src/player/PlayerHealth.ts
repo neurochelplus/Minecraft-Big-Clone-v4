@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import type { IControls } from "../contracts/controls";
 import { HealthBar } from '../ui/HealthBar';
+import { globalEventBus } from '../modding';
+import { INVULNERABILITY_DURATION } from '../constants/GameConstants';
+import { logger } from '../utils/Logger';
 
 export class PlayerHealth {
   private hp: number = 20;
@@ -51,6 +54,13 @@ export class PlayerHealth {
     if (this.hp < 0) this.hp = 0;
     this.healthBar.update(this.hp);
 
+    // Emit event for mods
+    globalEventBus.emit('player:damage', {
+      amount,
+      newHp: this.hp,
+      maxHp: this.maxHp,
+    });
+
     this.isInvulnerable = true;
 
     // Red Flash Effect
@@ -83,7 +93,7 @@ export class PlayerHealth {
 
     setTimeout(() => {
       this.isInvulnerable = false;
-    }, 500);
+    }, INVULNERABILITY_DURATION);
   }
 
   public respawn(): void {
@@ -101,7 +111,7 @@ export class PlayerHealth {
       this.onRespawn();
     }
 
-    console.log("Respawned!");
+    logger.info("Player respawned");
   }
 
   public setHp(hp: number): void {

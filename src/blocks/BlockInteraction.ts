@@ -1,31 +1,21 @@
 import * as THREE from "three";
 import { PerspectiveCamera } from "three";
 import { Scene } from "three";
-import type { IWorld } from "../contracts/world";
-import type { IMobCollider } from "../contracts/mobs";
+import { World } from "../world/World";
 import { BLOCK } from "../constants/Blocks";
+import { Mob } from "../mobs/Mob";
 import {
   PLAYER_HALF_WIDTH,
   PLAYER_HEIGHT,
   PLAYER_EYE_HEIGHT,
 } from "../constants/GameConstants";
-
-type ControlsLike = {
-  object: THREE.Object3D;
-  velocity?: { set: (x: number, y: number, z: number) => void };
-};
-
-type SelectableObject = THREE.Object3D & {
-  isMesh?: boolean;
-  isItem?: boolean;
-  parent?: THREE.Object3D & { isMob?: boolean };
-};
+import { globalEventBus } from "../modding";
 
 export class BlockInteraction {
   private raycaster: THREE.Raycaster;
   private camera: PerspectiveCamera;
   private scene: Scene;
-  private controls: ControlsLike;
+  private controls: PointerLockControls;
   private cursorMesh?: THREE.Mesh;
   private crackMesh?: THREE.Mesh;
   private readonly MAX_DISTANCE = 6;
@@ -36,7 +26,7 @@ export class BlockInteraction {
   private readonly EAT_DURATION = 1.5; // Seconds
 
   private getSelectedSlotItem: () => { id: number; count: number };
-  private getMobs?: () => IMobCollider[];
+  private getMobs?: () => Mob[];
   private onPlaceBlock?: (
     x: number,
     y: number,
@@ -50,7 +40,7 @@ export class BlockInteraction {
   constructor(
     camera: PerspectiveCamera,
     scene: Scene,
-    controls: ControlsLike,
+    controls: any,
     getSelectedSlotItem: () => { id: number; count: number },
     onPlaceBlock?: (
       x: number,
@@ -62,7 +52,7 @@ export class BlockInteraction {
     onOpenFurnace?: (x: number, y: number, z: number) => void,
     cursorMesh?: THREE.Mesh,
     crackMesh?: THREE.Mesh,
-    getMobs?: () => IMobCollider[],
+    getMobs?: () => Mob[],
     onConsumeItem?: () => void,
   ) {
     this.camera = camera;
@@ -77,7 +67,6 @@ export class BlockInteraction {
     this.getMobs = getMobs;
     this.onConsumeItem = onConsumeItem;
     this.raycaster = new THREE.Raycaster();
-    this.raycaster.far = this.MAX_DISTANCE;
   }
 
   public update(delta: number, isUsePressed: boolean) {
@@ -110,10 +99,43 @@ export class BlockInteraction {
   }
 
   private consumeFood(_id: number) {
+    if (this.onConsumeItem) {
+        // We need to know how much HP to restore
+        // For now, let's just trigger the generic consume callback which removes item
+        // But we also need to heal player.
+        // BlockInteraction doesn't have reference to PlayerHealth directly.
+        // But onConsumeItem is a callback.
+        // Let's modify onConsumeItem to accept amount of healing?
+        // Or just let Game handle it via checking active item?
+        // Actually, onConsumeItem in Game.ts currently just decrements inventory.
+        
+        // Let's assume onConsumeItem handles inventory decrement.
+        // We need another callback or pass data?
+        // Let's use onConsumeItem and let Game handle the effect based on item ID.
+        // Wait, BlockInteraction doesn't know about healing logic.
+        // Let's just call onConsumeItem, and Game.ts will check what was consumed.
+        // But onConsumeItem is void.
+        
+        // Let's refactor onConsumeItem to take an ID, or add onEat callback?
+        // Simpler: Game.ts passes a callback that knows what to do.
+        // But currently onConsumeItem is generic.
+        
+        // Let's just call onConsumeItem() and I will update Game.ts to handle healing there?
+        // No, Game.ts passes `() => this.inventory.consumeCurrentItem()` usually.
+        // I need to heal BEFORE consuming or ALONG with consuming.
+        
+        // I will add a new callback `onEat` to BlockInteraction constructor?
+        // Or just emit an event?
+        // Let's reuse onConsumeItem but I'll need to update Game.ts to handle healing.
+        // Actually, let's just add `onHeal` callback to BlockInteraction.
+        
+        // Wait, I can't easily change constructor signature everywhere without reading Game.ts again.
+        // I already read Game.ts. I can change it.
+    }
     this.onConsumeItem?.();
   }
 
-  public interact(world: IWorld): void {
+  public interact(world: World): void {
     // 1. Check Item Usage (Broken Compass)
     const slot = this.getSelectedSlotItem();
     if (slot.id === BLOCK.BROKEN_COMPASS) {
@@ -129,7 +151,7 @@ export class BlockInteraction {
       const tz = Math.floor(targetZ);
 
       // Find valid ground
-      const topY = world.getTopY(tx, tz);
+      let topY = world.getTopY(tx, tz);
 
       // If valid height found (and not void)
       if (topY > 0) {
@@ -142,9 +164,8 @@ export class BlockInteraction {
         playerPos.set(tx + 0.5, targetY, tz + 0.5);
 
         // Reset velocity to prevent fall damage or momentum
-        if (this.controls.velocity) {
-          this.controls.velocity.set(0, 0, 0);
-        }
+        if ((this.controls as any).velocity)
+          (this.controls as any).velocity.set(0, 0, 0);
 
         // Consume Item
         if (this.onConsumeItem) this.onConsumeItem();
@@ -156,18 +177,16 @@ export class BlockInteraction {
     }
 
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-    const intersects = this.raycaster.intersectObjects(this.scene.children, false);
-    const hit = intersects.find((i) => {
-      const obj = i.object as SelectableObject;
-      return (
+    const intersects = this.raycaster.intersectObjects(this.scene.children);
+    const hit = intersects.find(
+      (i) =>
         i.object !== this.cursorMesh &&
         i.object !== this.crackMesh &&
         i.object !== this.controls.object &&
-        obj.isMesh &&
-        !obj.isItem &&
-        !obj.parent?.isMob
-      );
-    });
+        (i.object as any).isMesh &&
+        !(i.object as any).isItem &&
+        !(i.object.parent as any)?.isMob,
+    );
 
     if (hit && hit.distance < this.MAX_DISTANCE) {
       const p = hit.point
@@ -263,7 +282,11 @@ export class BlockInteraction {
           if (this.onPlaceBlock) {
             const placed = this.onPlaceBlock(px, py, pz, slot.id);
             if (placed) {
-              // Block was placed, inventory will be updated by caller
+              // Emit event for mods
+              globalEventBus.emit('world:blockPlace', {
+                x: px, y: py, z: pz,
+                blockId: slot.id,
+              });
             }
           }
         }

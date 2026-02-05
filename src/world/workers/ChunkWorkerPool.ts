@@ -1,119 +1,197 @@
-import type { ChunkData, ChunkMeshData } from "../../contracts/chunks";
+/**
+ * Пул Web Workers для параллельной генерации чанков
+ * Распределяет задачи между воркерами и управляет очередью
+ */
 
-type GenerateRequest = {
+export interface ChunkTask {
   id: number;
-  type: "generate";
   cx: number;
   cz: number;
-  seed: number;
-  chunkSize: number;
-  chunkHeight: number;
-  withMesh: boolean;
-};
-
-type GenerateResponse = {
-  id: number;
-  type: "generateResult";
-  chunk: ChunkData;
-  meshData?: ChunkMeshData;
-};
-
-type Pending = {
-  resolve: (value: { chunk: ChunkData; meshData?: ChunkMeshData }) => void;
-  reject: (err: unknown) => void;
-  workerIndex: number;
-};
+  priority: number;
+  resolve: (data: Uint8Array) => void;
+  reject: (error: Error) => void;
+}
 
 export class ChunkWorkerPool {
   private workers: Worker[] = [];
-  private nextWorker = 0;
-  private nextId = 1;
-  private pending: Map<number, Pending> = new Map();
-  private pendingByWorker: Map<number, Set<number>> = new Map();
+  private busyWorkers: Set<Worker> = new Set();
+  private taskQueue: ChunkTask[] = [];
+  private taskIdCounter: number = 0;
+  private pendingTasks: Map<number, ChunkTask> = new Map();
+  
+  private seed: number;
+  private chunkSize: number;
+  private chunkHeight: number;
+  private poolSize: number;
+  private readyWorkers: number = 0;
 
-  constructor(count: number) {
-    for (let i = 0; i < count; i++) {
-      this.pendingByWorker.set(i, new Set());
-      this.workers.push(this.createWorker(i));
-    }
-  }
-
-  private createWorker(index: number): Worker {
-    const worker = new Worker(new URL("./chunkWorker.ts", import.meta.url), {
-      type: "module",
-    });
-    worker.onmessage = (event: MessageEvent<GenerateResponse>) => {
-      const message = event.data;
-      if (message.type !== "generateResult") return;
-      const pending = this.pending.get(message.id);
-      if (!pending) return;
-      this.pending.delete(message.id);
-      this.pendingByWorker.get(pending.workerIndex)?.delete(message.id);
-      pending.resolve({ chunk: message.chunk, meshData: message.meshData });
-    };
-    worker.onerror = (err) => {
-      console.error("Chunk worker error:", err);
-      const ids = this.pendingByWorker.get(index);
-      if (ids) {
-        for (const id of ids) {
-          const pending = this.pending.get(id);
-          if (pending) {
-            pending.reject(err);
-            this.pending.delete(id);
-          }
-        }
-        ids.clear();
-      }
-      this.replaceWorker(index);
-    };
-    return worker;
-  }
-
-  private replaceWorker(index: number): void {
-    const worker = this.workers[index];
-    if (worker) {
-      worker.terminate();
-    }
-    this.workers[index] = this.createWorker(index);
-  }
-
-  public async generateChunk(
-    cx: number,
-    cz: number,
+  constructor(
     seed: number,
     chunkSize: number,
     chunkHeight: number,
-    withMesh: boolean,
-  ): Promise<{ chunk: ChunkData; meshData?: ChunkMeshData }> {
-    const id = this.nextId++;
-    const workerIndex = this.nextWorker;
-    const worker = this.workers[workerIndex];
-    this.nextWorker = (this.nextWorker + 1) % this.workers.length;
+    poolSize: number = navigator.hardwareConcurrency || 4,
+  ) {
+    this.seed = seed;
+    this.chunkSize = chunkSize;
+    this.chunkHeight = chunkHeight;
+    this.poolSize = Math.min(poolSize, 4); // Максимум 4 воркера
+    
+    this.initWorkers();
+  }
 
-    const req: GenerateRequest = {
-      id,
-      type: "generate",
-      cx,
-      cz,
-      seed,
-      chunkSize,
-      chunkHeight,
-      withMesh,
-    };
+  private initWorkers(): void {
+    for (let i = 0; i < this.poolSize; i++) {
+      const worker = new Worker(
+        new URL('./terrain.worker.ts', import.meta.url),
+        { type: 'module' }
+      );
+      
+      worker.onmessage = (e) => this.handleMessage(worker, e);
+      worker.onerror = (e) => this.handleError(worker, e);
+      
+      this.workers.push(worker);
+    }
+  }
 
+  private handleMessage(worker: Worker, e: MessageEvent): void {
+    const { type, id, data } = e.data;
+    
+    if (type === 'ready') {
+      this.readyWorkers++;
+      return;
+    }
+    
+    if (type === 'result') {
+      const task = this.pendingTasks.get(id);
+      if (task) {
+        task.resolve(data);
+        this.pendingTasks.delete(id);
+      }
+      
+      this.busyWorkers.delete(worker);
+      this.processQueue();
+    }
+  }
+
+  private handleError(worker: Worker, e: ErrorEvent): void {
+    console.error('Worker error:', e.message);
+    
+    // Найти и отклонить задачу этого воркера
+    for (const [id, task] of this.pendingTasks) {
+      task.reject(new Error(`Worker error: ${e.message}`));
+      this.pendingTasks.delete(id);
+    }
+    
+    this.busyWorkers.delete(worker);
+    this.processQueue();
+  }
+
+  /**
+   * Добавить задачу генерации чанка
+   */
+  public generateChunk(cx: number, cz: number, priority: number = 0): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject, workerIndex });
-      this.pendingByWorker.get(workerIndex)?.add(id);
-      worker.postMessage(req);
+      const task: ChunkTask = {
+        id: this.taskIdCounter++,
+        cx,
+        cz,
+        priority,
+        resolve,
+        reject,
+      };
+      
+      this.taskQueue.push(task);
+      this.taskQueue.sort((a, b) => a.priority - b.priority);
+      
+      this.processQueue();
     });
   }
 
-  public dispose(): void {
+  /**
+   * Обработать очередь задач
+   */
+  private processQueue(): void {
+    while (this.taskQueue.length > 0) {
+      const availableWorker = this.getAvailableWorker();
+      if (!availableWorker) break;
+      
+      const task = this.taskQueue.shift()!;
+      this.executeTask(availableWorker, task);
+    }
+  }
+
+  private getAvailableWorker(): Worker | null {
+    for (const worker of this.workers) {
+      if (!this.busyWorkers.has(worker)) {
+        return worker;
+      }
+    }
+    return null;
+  }
+
+  private executeTask(worker: Worker, task: ChunkTask): void {
+    this.busyWorkers.add(worker);
+    this.pendingTasks.set(task.id, task);
+    
+    worker.postMessage({
+      type: 'generate',
+      id: task.id,
+      cx: task.cx,
+      cz: task.cz,
+      seed: this.seed,
+      chunkSize: this.chunkSize,
+      chunkHeight: this.chunkHeight,
+    });
+  }
+
+  /**
+   * Обновить seed для всех воркеров
+   */
+  public setSeed(seed: number): void {
+    this.seed = seed;
+  }
+
+  /**
+   * Проверить готовность пула
+   */
+  public isReady(): boolean {
+    return this.readyWorkers >= this.poolSize;
+  }
+
+  /**
+   * Получить количество задач в очереди
+   */
+  public getQueueSize(): number {
+    return this.taskQueue.length;
+  }
+
+  /**
+   * Получить количество занятых воркеров
+   */
+  public getBusyCount(): number {
+    return this.busyWorkers.size;
+  }
+
+  /**
+   * Очистить очередь
+   */
+  public clearQueue(): void {
+    for (const task of this.taskQueue) {
+      task.reject(new Error('Queue cleared'));
+    }
+    this.taskQueue = [];
+  }
+
+  /**
+   * Завершить все воркеры
+   */
+  public terminate(): void {
+    this.clearQueue();
     for (const worker of this.workers) {
       worker.terminate();
     }
     this.workers = [];
-    this.pending.clear();
-    this.pendingByWorker.clear();
+    this.busyWorkers.clear();
+    this.pendingTasks.clear();
   }
 }

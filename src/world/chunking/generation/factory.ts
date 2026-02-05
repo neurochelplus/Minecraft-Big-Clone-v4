@@ -1,6 +1,6 @@
 import { RngStreams } from "../../../utils/Rng";
 import type { ChunkManagerState } from "../types";
-import type { TerrainGenerator } from "../../TerrainGenerator";
+import type { TerrainGenerator } from "../../generation/TerrainGenerator";
 import { ChunkGenerator } from "../../generation/ChunkGenerator";
 import { BiomeDecorator } from "../../generation/decorators/BiomeDecorator";
 import { CaveDecorator } from "../../generation/decorators/CaveDecorator";

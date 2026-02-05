@@ -1,34 +1,23 @@
-import type { IGameState } from "../contracts/gameState";
-import type { IWorld } from "../contracts/world";
-import type { IInventory } from "../contracts/inventory";
-import type { IFurnaceManager } from "../contracts/crafting";
-import type { IControls } from "../contracts/controls";
+import { GameState } from "../core/GameState";
+import { World } from "../world/World";
+import { Inventory } from "../inventory/Inventory";
+import { FurnaceManager } from "../crafting/FurnaceManager";
+import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import { AUTO_SAVE_INTERVAL } from "../constants/GameConstants";
 
 /**
  * Handles automatic world saving every 30 seconds
  */
 export class AutoSave {
   private intervalId: number | null = null;
-  private readonly SAVE_INTERVAL = 30000; // 30 seconds
-  private gameState: IGameState;
-  private world: IWorld;
-  private controls: IControls;
-  private inventory: IInventory;
-  private furnaceManager: IFurnaceManager;
+  private readonly SAVE_INTERVAL = AUTO_SAVE_INTERVAL;
 
   constructor(
-    gameState: IGameState,
-    world: IWorld,
-    controls: IControls,
-    inventory: IInventory,
-    furnaceManager: IFurnaceManager,
-  ) {
-    this.gameState = gameState;
-    this.world = world;
-    this.controls = controls;
-    this.inventory = inventory;
-    this.furnaceManager = furnaceManager;
-  }
+    private gameState: GameState,
+    private world: World,
+    private controls: PointerLockControls,
+    private inventory: Inventory,
+  ) {}
 
   /**
    * Start auto-save timer
@@ -40,7 +29,7 @@ export class AutoSave {
           position: this.controls.object.position,
           inventory: this.inventory.serialize(),
         });
-        this.furnaceManager.save();
+        FurnaceManager.getInstance().save();
       }
     }, this.SAVE_INTERVAL);
   }

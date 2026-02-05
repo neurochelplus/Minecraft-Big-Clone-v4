@@ -1,18 +1,9 @@
 import * as THREE from "three";
 import { PerspectiveCamera } from "three";
 import { Scene } from "three";
-import type { IWorld } from "../contracts/world";
+import { World } from "../world/World";
 import { BLOCK } from "../constants/Blocks";
-
-type ControlsLike = {
-  object: THREE.Object3D;
-};
-
-type SelectableObject = THREE.Object3D & {
-  isMesh?: boolean;
-  isItem?: boolean;
-  parent?: THREE.Object3D & { isMob?: boolean };
-};
+import { globalEventBus } from "../modding";
 
 export class BlockBreaking {
   private crackMesh: THREE.Mesh;
@@ -20,8 +11,13 @@ export class BlockBreaking {
   private raycaster: THREE.Raycaster;
   private camera: PerspectiveCamera;
   private scene: Scene;
-  private controls: ControlsLike;
+  private controls: PointerLockControls;
   private cursorMesh?: THREE.Mesh;
+  
+  // Raycast кэширование
+  private chunkMeshes: THREE.Object3D[] = [];
+  private lastCacheUpdate: number = 0;
+  private readonly CACHE_UPDATE_INTERVAL: number = 500; // ms
 
   private isBreaking: boolean = false;
   private breakStartTime: number = 0;
@@ -39,7 +35,7 @@ export class BlockBreaking {
   constructor(
     scene: Scene,
     camera: PerspectiveCamera,
-    controls: ControlsLike,
+    controls: any,
     getSelectedSlotItem: () => number,
     onBlockBreak?: (x: number, y: number, z: number, blockId: number) => void,
     cursorMesh?: THREE.Mesh,
@@ -51,7 +47,6 @@ export class BlockBreaking {
     this.onBlockBreak = onBlockBreak;
     this.cursorMesh = cursorMesh;
     this.raycaster = new THREE.Raycaster();
-    this.raycaster.far = 6;
 
     // Create crack texture
     this.crackTexture = this.createCrackTexture();
@@ -118,21 +113,31 @@ export class BlockBreaking {
     return this.isBreaking;
   }
 
-  public start(world: IWorld): void {
+  /**
+   * Обновить кэш chunk meshes для raycast
+   */
+  private updateChunkMeshCache(): void {
+    const now = performance.now();
+    if (now - this.lastCacheUpdate < this.CACHE_UPDATE_INTERVAL) return;
+    
+    this.lastCacheUpdate = now;
+    this.chunkMeshes = this.scene.children.filter(
+      (obj) =>
+        obj !== this.cursorMesh &&
+        obj !== this.crackMesh &&
+        obj !== this.controls.object &&
+        (obj as any).isMesh &&
+        !(obj as any).isItem &&
+        !(obj.parent as any)?.isMob
+    );
+  }
+
+  public start(world: World): void {
+    this.updateChunkMeshCache();
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
     const hit = this.raycaster
-      .intersectObjects(this.scene.children, false)
-      .find((i) => {
-        const obj = i.object as SelectableObject;
-        return (
-          i.object !== this.cursorMesh &&
-          i.object !== this.crackMesh &&
-          i.object !== this.controls.object &&
-          obj.isMesh &&
-          !obj.isItem &&
-          !obj.parent?.isMob
-        );
-      });
+      .intersectObjects(this.chunkMeshes)
+      .find((i) => i.distance < 6);
 
     if (hit && hit.distance < 6) {
       const p = hit.point
@@ -157,27 +162,18 @@ export class BlockBreaking {
     this.crackMesh.visible = false;
   }
 
-  public update(time: number, world: IWorld): void {
+  public update(time: number, world: World): void {
     if (!this.isBreaking) {
       this.crackMesh.visible = false;
       return;
     }
 
     // Check if still looking at same block
+    this.updateChunkMeshCache();
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
     const hit = this.raycaster
-      .intersectObjects(this.scene.children, false)
-      .find((i) => {
-        const obj = i.object as SelectableObject;
-        return (
-          i.object !== this.cursorMesh &&
-          i.object !== this.crackMesh &&
-          i.object !== this.controls.object &&
-          obj.isMesh &&
-          !obj.isItem &&
-          !obj.parent?.isMob
-        );
-      });
+      .intersectObjects(this.chunkMeshes)
+      .find((i) => i.distance < 6);
 
     let lookingAtSame = false;
     if (hit && hit.distance < 6) {
@@ -213,6 +209,12 @@ export class BlockBreaking {
       const x = this.currentBreakBlock.x;
       const y = this.currentBreakBlock.y;
       const z = this.currentBreakBlock.z;
+
+      // Emit event for mods
+      globalEventBus.emit('world:blockBreak', {
+        x, y, z,
+        blockId: this.currentBreakId,
+      });
 
       if (this.onBlockBreak) {
         this.onBlockBreak(x, y, z, this.currentBreakId);

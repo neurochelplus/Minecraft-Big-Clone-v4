@@ -1,7 +1,14 @@
-import type { IEnvironment } from "../contracts/environment";
+import { Environment } from "../world/Environment";
+import { FeatureToggles } from "./FeatureToggles";
 
-export function initDebugControls(environment: IEnvironment) {
+export function initDebugControls(environment: Environment) {
   window.addEventListener("keydown", (event) => {
+    // Check if day/night keys are enabled
+    const toggles = FeatureToggles.getInstance();
+    if (!toggles.isEnabled('enable_day_night_keys')) {
+      return;
+    }
+
     // Only trigger if not typing in an input (though we don't have inputs yet, good practice)
     if (
       document.activeElement?.tagName === "INPUT" ||

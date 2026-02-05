@@ -1,6 +1,6 @@
 import type { ChunkData, ChunkGenContext, IChunkDecorator, IChunkSource } from "../../contracts/chunks";
 import { RngStreams, hashSeed } from "../../utils/Rng";
-import { TerrainGenerator } from "../TerrainGenerator";
+import { TerrainGenerator } from "./TerrainGenerator";
 import { GenProfiler } from "../../utils/GenProfiler";
 
 export type ChunkGeneratorOptions = {

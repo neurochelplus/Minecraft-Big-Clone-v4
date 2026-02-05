@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ChunkGenerator } from "./ChunkGenerator";
-import { TerrainGenerator } from "../TerrainGenerator";
+import { TerrainGenerator } from "./TerrainGenerator";
 import { RngStreams } from "../../utils/Rng";
 import { BiomeDecorator } from "./decorators/BiomeDecorator";
 import { CaveDecorator } from "./decorators/CaveDecorator";

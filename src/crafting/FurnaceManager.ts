@@ -2,6 +2,7 @@
 import { worldDB } from "../utils/DB";
 import type { IStorage } from "../contracts/storage";
 import { SMELTING_RECIPES, FUEL_ITEMS } from "./Recipes";
+import { logger } from "../utils/Logger";
 
 export interface FurnaceData {
   x: number;
@@ -194,7 +195,7 @@ export class FurnaceManager {
           this.furnaces.set(key as string, data);
         }
       }
-      console.log(`Loaded ${this.furnaces.size} furnaces.`);
+      logger.debug(`Loaded ${this.furnaces.size} furnaces.`);
     } catch (e) {
       console.warn("Failed to load block entities", e);
     }

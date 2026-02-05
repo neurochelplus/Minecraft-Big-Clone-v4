@@ -1,7 +1,6 @@
 import { bench, describe } from "vitest";
-import { StructureGenerator } from "../StructureGenerator";
-import { TerrainGenerator } from "../TerrainGenerator";
-import { RngStreams } from "../../utils/Rng";
+import { StructureGenerator } from "../generation/StructureGenerator";
+import { TerrainGenerator } from "../generation/TerrainGenerator";
 
 const seed = 1337;
 const chunkSize = 16;
@@ -13,11 +12,7 @@ const getBlockIndex = (x: number, y: number, z: number) =>
   x + y * chunkSize + z * chunkSize * chunkHeight;
 
 const terrainGen = new TerrainGenerator(seed);
-const streams = new RngStreams(seed);
-const structureGen = new StructureGenerator(
-  terrainGen,
-  streams.forStage("structures"),
-);
+const structureGen = new StructureGenerator(terrainGen);
 
 const createBaseTerrain = () => {
   const data = new Uint8Array(chunkSize * chunkSize * chunkHeight);
@@ -40,8 +35,6 @@ describe("StructureGenerator performance", () => {
       data,
       chunkSize,
       chunkHeight,
-      startX,
-      startZ,
       getBlockIndex,
     );
   });

@@ -1,6 +1,6 @@
 import { bench, describe } from "vitest";
 import { ChunkGenerator } from "../generation/ChunkGenerator";
-import { TerrainGenerator } from "../TerrainGenerator";
+import { TerrainGenerator } from "../generation/TerrainGenerator";
 import { RngStreams } from "../../utils/Rng";
 import { BiomeDecorator } from "../generation/decorators/BiomeDecorator";
 import { CaveDecorator } from "../generation/decorators/CaveDecorator";

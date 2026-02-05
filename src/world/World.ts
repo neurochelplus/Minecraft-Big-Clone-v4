@@ -1,25 +1,15 @@
 import * as THREE from "three";
-import type { IWorld } from "../contracts/world";
 import { worldDB } from "../utils/DB";
-import type { IStorage } from "../contracts/storage";
-import type { InventorySlot } from "../contracts/inventory";
-import type { IFurnaceManager } from "../contracts/crafting";
 import { BLOCK } from "../constants/Blocks";
-import { ChunkManager } from "./ChunkManager";
-import type { ProfilerHook } from "../contracts/profiler";
+import { ChunkManager } from "./chunks/ChunkManager";
+import { logger } from "../utils/Logger";
+import type { SerializedInventory } from "../types/Inventory";
 
-type WorldMeta = {
-  seed?: number;
-  position?: { x: number; y: number; z: number };
-  inventory?: InventorySlot[];
-};
-
-export class World implements IWorld {
+export class World {
   private chunkManager: ChunkManager;
-  private storage: IStorage = worldDB;
 
-  constructor(scene: THREE.Scene, furnaceManager?: IFurnaceManager) {
-    this.chunkManager = new ChunkManager(scene, undefined, furnaceManager);
+  constructor(scene: THREE.Scene) {
+    this.chunkManager = new ChunkManager(scene);
   }
 
   public get noiseTexture(): THREE.DataTexture {
@@ -29,48 +19,38 @@ export class World implements IWorld {
   // Persistence
   public async loadWorld(): Promise<{
     playerPosition?: THREE.Vector3;
-    inventory?: InventorySlot[];
+    inventory?: SerializedInventory;
   }> {
     await this.chunkManager.init();
 
-    const meta = await this.storage.get<WorldMeta>("player", "meta");
+    const meta = await worldDB.get("player", "meta");
 
     if (meta?.seed !== undefined) {
       this.chunkManager.setSeed(meta.seed);
-      console.log(`Loaded seed: ${meta.seed}`);
+      logger.debug(`Loaded seed: ${meta.seed}`);
     } else {
-      console.log(`No seed found, using current: ${this.chunkManager.getSeed()}`);
+      logger.debug(`No seed found, using current: ${this.chunkManager.getSeed()}`);
     }
 
-    if (meta?.seed === undefined) {
-      await this.storage.set(
-        "player",
-        { ...meta, seed: this.chunkManager.getSeed() },
-        "meta",
-      );
-    }
-
-    if (meta?.position) {
-      return {
-        playerPosition: new THREE.Vector3(
-          meta.position.x,
-          meta.position.y,
-          meta.position.z,
-        ),
-        inventory: meta.inventory,
-      };
-    }
-
-    return meta?.inventory ? { inventory: meta.inventory } : {};
+    return meta
+      ? {
+          playerPosition: new THREE.Vector3(
+            meta.position.x,
+            meta.position.y,
+            meta.position.z,
+          ),
+          inventory: meta.inventory,
+        }
+      : {};
   }
 
   public async saveWorld(playerData: {
     position: THREE.Vector3;
-    inventory: InventorySlot[];
+    inventory: SerializedInventory;
   }) {
-    console.log("Saving world...");
+    logger.info("Saving world...");
 
-    await this.storage.set(
+    await worldDB.set(
       "player",
       {
         position: {
@@ -85,24 +65,23 @@ export class World implements IWorld {
     );
 
     await this.chunkManager.saveDirtyChunks();
-    console.log("World saved.");
+    logger.info("World saved");
   }
 
   public async deleteWorld() {
-    console.log("Deleting world...");
-    await this.storage.init();
+    logger.info("Deleting world...");
+    await worldDB.init();
     await this.chunkManager.clear();
-    this.chunkManager.dispose();
-    console.log("World deleted.");
+    logger.info("World deleted");
   }
 
   // Chunk operations
-  public update(
-    playerPos: THREE.Vector3,
-    viewDir?: THREE.Vector3,
-    profiler?: ProfilerHook,
-  ) {
-    this.chunkManager.update(playerPos, viewDir, profiler);
+  public update(playerPos: THREE.Vector3) {
+    this.chunkManager.update(playerPos);
+  }
+
+  public updateChunkVisibility(camera: THREE.Camera) {
+    this.chunkManager.updateVisibility(camera);
   }
 
   public async loadChunk(cx: number, cz: number) {
@@ -111,15 +90,6 @@ export class World implements IWorld {
 
   public async waitForChunk(cx: number, cz: number): Promise<void> {
     await this.chunkManager.waitForChunk(cx, cz);
-  }
-
-  public async preGenerateAround(
-    spawnX: number,
-    spawnZ: number,
-    radius: number,
-    options?: { budgetMs?: number; onProgress?: (progress: number) => void },
-  ): Promise<void> {
-    await this.chunkManager.preGenerateAround(spawnX, spawnZ, radius, options);
   }
 
   public isChunkLoaded(x: number, z: number): boolean {
@@ -141,6 +111,10 @@ export class World implements IWorld {
 
   public getTopY(worldX: number, worldZ: number): number {
     return this.chunkManager.getTopY(worldX, worldZ);
+  }
+
+  public getChunkCount(): { visible: number; total: number } {
+    return this.chunkManager.getChunkCount();
   }
 
   // Block breaking times
@@ -184,20 +158,18 @@ export class World implements IWorld {
 
       case BLOCK.WOOD:
       case BLOCK.PLANKS:
-        {
-          let multiplier = 1;
-          if (
-            toolId === BLOCK.WOODEN_AXE ||
-            toolId === BLOCK.STONE_AXE ||
-            toolId === BLOCK.IRON_AXE
-          ) {
-            if (toolId === BLOCK.IRON_AXE) multiplier = 8;
-            else if (toolId === BLOCK.STONE_AXE) multiplier = 4;
-            else multiplier = 2;
-          }
-          time = 3000 / multiplier;
-          break;
+        let multiplier = 1;
+        if (
+          toolId === BLOCK.WOODEN_AXE ||
+          toolId === BLOCK.STONE_AXE ||
+          toolId === BLOCK.IRON_AXE
+        ) {
+          if (toolId === BLOCK.IRON_AXE) multiplier = 8;
+          else if (toolId === BLOCK.STONE_AXE) multiplier = 4;
+          else multiplier = 2;
         }
+        time = 3000 / multiplier;
+        break;
 
       case BLOCK.BEDROCK:
         return Infinity;

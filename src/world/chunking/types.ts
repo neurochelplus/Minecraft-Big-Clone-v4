@@ -1,10 +1,10 @@
 import type * as THREE from "three";
 import type { ChunkMeshData, ChunkMeta, IChunkStreamer } from "../../contracts/chunks";
 import type { ProfilerHook } from "../../contracts/profiler";
-import type { TerrainGenerator } from "../TerrainGenerator";
+import type { TerrainGenerator } from "../generation/TerrainGenerator";
 import type { ChunkGenerator } from "../generation/ChunkGenerator";
-import type { ChunkMeshBuilder } from "../ChunkMeshBuilder";
-import type { ChunkPersistence } from "../ChunkPersistence";
+import type { ChunkMeshBuilder } from "../chunks/ChunkMeshBuilder";
+import type { ChunkPersistence } from "../chunks/ChunkPersistence";
 import type { ChunkWorkerPool } from "../workers/ChunkWorkerPool";
 import type { PerfProfileName } from "../perf/PerfProfile";
 

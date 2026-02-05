@@ -1,11 +1,9 @@
 import { createNoise2D } from "simplex-noise";
-import { BLOCK } from "../constants/Blocks";
-import { Rng } from "../utils/Rng";
+import { BLOCK } from "../../constants/Blocks";
 
 export class TerrainGenerator {
   private noise2D: (x: number, y: number) => number;
   private seed: number;
-  private rng: Rng;
 
   private readonly TERRAIN_SCALE = 50;
   private readonly TERRAIN_HEIGHT = 8;
@@ -13,12 +11,18 @@ export class TerrainGenerator {
 
   constructor(seed?: number) {
     this.seed = seed ?? Math.floor(Math.random() * 2147483647);
-    this.rng = new Rng(this.seed);
     this.noise2D = this.createNoiseGenerator();
   }
 
   private createNoiseGenerator() {
-    return createNoise2D(() => this.rng.next());
+    let a = this.seed;
+    const random = () => {
+      let t = (a += 0x6d2b79f5);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    return createNoise2D(random);
   }
 
   public getSeed(): number {
@@ -27,7 +31,6 @@ export class TerrainGenerator {
 
   public setSeed(seed: number) {
     this.seed = seed;
-    this.rng = new Rng(this.seed);
     this.noise2D = this.createNoiseGenerator();
   }
 

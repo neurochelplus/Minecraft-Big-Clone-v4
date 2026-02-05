@@ -1,0 +1,16 @@
+# Feature Toggles Configuration
+# Format: key=value (use 'on' or 'off' for each setting)
+# Lines starting with # are comments and will be ignored
+# Empty lines are also ignored
+
+# Show FPS counter and rendering stats (useful for performance debugging)
+show_fps=off
+
+# Show Mods button in main menu (allows access to mod management)
+show_mods=off
+
+# Enable command line interface with / key (provides debug commands)
+show_cli=off
+
+# Enable day/night toggle keys K and L (K=night, L=day)
+enable_day_night_keys=enable

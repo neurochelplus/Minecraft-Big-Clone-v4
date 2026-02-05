@@ -1,22 +1,14 @@
-﻿import * as THREE from "three";
-import type { IWorld } from "../contracts/world";
-import type { IPlayerInput } from "../contracts/player";
+import * as THREE from "three";
+import { World } from "../world/World";
+import { Player } from "../player/Player";
+import { MobState, type MobStateType } from "../types/Mobs";
 
-export const MobState = {
-  IDLE: 0,
-  WANDER: 1,
-  CHASE: 2,
-  ATTACK: 3,
-  SEEK_SHELTER: 4,
-  ALERT: 5,
-  FLEE: 6,
-} as const;
-
-export type MobState = (typeof MobState)[keyof typeof MobState];
+export { MobState };
+export type { MobStateType };
 
 export class Mob {
   public mesh: THREE.Group;
-  public state: MobState = MobState.IDLE;
+  public state: MobStateType = MobState.IDLE;
 
   // Physics
   protected velocity = new THREE.Vector3();
@@ -33,7 +25,7 @@ export class Mob {
   protected wanderAngle = 0;
 
   // References
-  protected world: IWorld;
+  protected world: World;
   protected scene: THREE.Scene;
 
   // Stats
@@ -49,7 +41,7 @@ export class Mob {
   private fireMesh: THREE.Mesh | null = null;
 
   constructor(
-    world: IWorld,
+    world: World,
     scene: THREE.Scene,
     x: number,
     y: number,
@@ -59,7 +51,7 @@ export class Mob {
     this.scene = scene;
 
     this.mesh = new THREE.Group();
-    (this.mesh as THREE.Group & { isMob?: boolean }).isMob = true;
+    (this.mesh as any).isMob = true;
     this.mesh.userData.mob = this;
     this.mesh.position.set(x, y, z);
 
@@ -177,7 +169,7 @@ export class Mob {
 
   update(
     delta: number,
-    player?: THREE.Vector3 | IPlayerInput,
+    player?: THREE.Vector3 | Player,
     onAttack?: (damage: number) => void,
     isDay?: boolean,
   ) {
@@ -186,8 +178,8 @@ export class Mob {
     if (player instanceof THREE.Vector3) {
       playerPos = player;
     } else if (player) {
-      playerPos = player.physics.controls.object
-        .position as THREE.Vector3;
+      // @ts-ignore
+      playerPos = player.physics.controls.object.position;
     }
 
     if (!this.isStunned) {
@@ -221,54 +213,148 @@ export class Mob {
       // 1% chance per frame (assuming 60fps)
       if (Math.random() < 0.01) {
         this.state = MobState.WANDER;
-        this.stateTimer = 1 + Math.random() * 3; // 1-4 seconds
+        this.stateTimer = 2 + Math.random(); // 2-3 seconds
         this.wanderAngle = Math.random() * Math.PI * 2;
       }
     } else if (this.state === MobState.WANDER) {
       this.stateTimer -= delta;
-      this.velocity.x = Math.sin(this.wanderAngle) * this.walkSpeed;
-      this.velocity.z = Math.cos(this.wanderAngle) * this.walkSpeed;
-
       if (this.stateTimer <= 0) {
         this.state = MobState.IDLE;
         this.velocity.x = 0;
         this.velocity.z = 0;
+      } else {
+        // Move in wander direction
+        this.velocity.x = Math.sin(this.wanderAngle) * this.walkSpeed;
+        this.velocity.z = Math.cos(this.wanderAngle) * this.walkSpeed;
+        this.mesh.rotation.y = this.wanderAngle;
       }
     }
   }
 
   protected updatePhysics(delta: number) {
+    const safeDelta = Math.min(delta, 0.05);
+
     // Gravity
-    this.velocity.y -= this.gravity * delta;
+    this.velocity.y -= this.gravity * safeDelta;
 
-    // Move
-    this.mesh.position.addScaledVector(this.velocity, delta);
+    // Friction (Air resistance/Ground friction)
+    // Apply when hurt (knockback) or generally to smooth movement
+    // But AI overrides velocity directly, so this mainly affects Knockback (isHurt=true)
+    const friction = 5.0;
+    const damping = Math.exp(-friction * safeDelta);
+    this.velocity.x *= damping;
+    this.velocity.z *= damping;
 
-    // Collide with ground
-    const x = Math.floor(this.mesh.position.x);
-    const y = Math.floor(this.mesh.position.y);
-    const z = Math.floor(this.mesh.position.z);
+    // X Movement
+    const dx = this.velocity.x * safeDelta;
+    this.mesh.position.x += dx;
+    if (this.checkCollision()) {
+      this.mesh.position.x -= dx;
+      this.onHorizontalCollision();
+    }
 
-    if (this.world.hasBlock(x, y, z)) {
-      this.mesh.position.y = Math.ceil(this.mesh.position.y);
+    // Z Movement
+    const dz = this.velocity.z * safeDelta;
+    this.mesh.position.z += dz;
+    if (this.checkCollision()) {
+      this.mesh.position.z -= dz;
+      this.onHorizontalCollision();
+    }
+
+    // Y Movement
+    this.mesh.position.y += this.velocity.y * safeDelta;
+    this.isOnGround = false;
+
+    if (this.checkCollision()) {
+      if (this.velocity.y < 0) {
+        // Landed
+        this.isOnGround = true;
+        this.mesh.position.y -= this.velocity.y * safeDelta;
+        // Align to surface (blocks are integers)
+        this.mesh.position.y = Math.round(this.mesh.position.y);
+      } else {
+        // Hit head
+        this.mesh.position.y -= this.velocity.y * safeDelta;
+      }
       this.velocity.y = 0;
-      this.isOnGround = true;
-    } else {
-      this.isOnGround = false;
+    }
+
+    // Void floor
+    if (this.mesh.position.y < -50) {
+      this.mesh.position.set(8, 20, 20);
+      this.velocity.set(0, 0, 0);
     }
   }
 
   public dispose() {
-    this.scene.remove(this.mesh);
     this.mesh.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.geometry.dispose();
         if (Array.isArray(child.material)) {
-          child.material.forEach((m) => m.dispose());
+          child.material.forEach((m: THREE.Material) => m.dispose());
         } else {
           child.material.dispose();
         }
       }
     });
+    if (this.fireMesh) {
+      this.fireMesh.geometry.dispose();
+      (this.fireMesh.material as THREE.Material).dispose();
+    }
+  }
+
+  protected onHorizontalCollision() {
+    if (this.isOnGround) {
+      // Simple auto-jump
+      this.velocity.y = Math.sqrt(2 * this.gravity * 1.25);
+      this.isOnGround = false;
+    }
+  }
+
+  protected checkCollision(): boolean {
+    const halfW = this.width / 2;
+    const pos = this.mesh.position;
+
+    const minX = Math.floor(pos.x - halfW);
+    const maxX = Math.floor(pos.x + halfW);
+    const minY = Math.floor(pos.y);
+    const maxY = Math.floor(pos.y + this.height);
+    const minZ = Math.floor(pos.z - halfW);
+    const maxZ = Math.floor(pos.z + halfW);
+
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
+        for (let z = minZ; z <= maxZ; z++) {
+          if (this.world.hasBlock(x, y, z)) {
+            // Using logic from World.ts (blocks are 0..1 relative to index)
+            const blockMinX = x;
+            const blockMaxX = x + 1;
+            const blockMinY = y;
+            const blockMaxY = y + 1;
+            const blockMinZ = z;
+            const blockMaxZ = z + 1;
+
+            const myMinX = pos.x - halfW;
+            const myMaxX = pos.x + halfW;
+            const myMinY = pos.y; // Mob pivot is at feet
+            const myMaxY = pos.y + this.height;
+            const myMinZ = pos.z - halfW;
+            const myMaxZ = pos.z + halfW;
+
+            if (
+              myMinX < blockMaxX &&
+              myMaxX > blockMinX &&
+              myMinY < blockMaxY &&
+              myMaxY > blockMinY &&
+              myMinZ < blockMaxZ &&
+              myMaxZ > blockMinZ
+            ) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
   }
 }
