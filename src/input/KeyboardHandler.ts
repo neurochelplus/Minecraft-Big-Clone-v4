@@ -16,6 +16,7 @@ export class KeyboardHandler {
   private onToggleInventory: (useCraftingTable: boolean) => void;
   private onShowPauseMenu: () => void;
   private onHotbarChange: () => void;
+  private onToggleProfiler: () => void;
 
   constructor(
     gameState: IGameState,
@@ -26,6 +27,7 @@ export class KeyboardHandler {
     onToggleInventory: (useCraftingTable: boolean) => void,
     onShowPauseMenu: () => void,
     onHotbarChange: () => void,
+    onToggleProfiler: () => void,
   ) {
     this.gameState = gameState;
     this.player = player;
@@ -35,6 +37,7 @@ export class KeyboardHandler {
     this.onToggleInventory = onToggleInventory;
     this.onShowPauseMenu = onShowPauseMenu;
     this.onHotbarChange = onHotbarChange;
+    this.onToggleProfiler = onToggleProfiler;
     this.init();
   }
 
@@ -80,6 +83,10 @@ export class KeyboardHandler {
     }
 
     switch (event.code) {
+      case "F3":
+        event.preventDefault();
+        this.onToggleProfiler();
+        break;
       case "Slash":
         event.preventDefault();
         this.cli.toggle(true, "/");

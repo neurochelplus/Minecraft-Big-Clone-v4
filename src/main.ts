@@ -78,6 +78,7 @@ new KeyboardHandler(
       systems.inventoryUI.onInventoryChange();
     }
   },
+  () => game.toggleProfiler(),
 );
 
 const mouseHandler = new MouseHandler(

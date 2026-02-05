@@ -77,13 +77,29 @@ export class Renderer {
   }
 
   public render(): void {
-    this.renderer.clear(); // Clear color & depth
-    this.renderer.render(this.scene, this.camera);
-    this.renderer.clearDepth(); // Clear depth for UI overlay
-    this.renderer.render(this.uiScene, this.uiCamera);
+    this.clear(); // Clear color & depth
+    this.renderMain();
+    this.clearDepth(); // Clear depth for UI overlay
+    this.renderUi();
   }
 
   public renderOnlyMain(): void {
     this.renderer.render(this.scene, this.camera);
+  }
+
+  public clear(): void {
+    this.renderer.clear();
+  }
+
+  public clearDepth(): void {
+    this.renderer.clearDepth();
+  }
+
+  public renderMain(): void {
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  public renderUi(): void {
+    this.renderer.render(this.uiScene, this.uiCamera);
   }
 }

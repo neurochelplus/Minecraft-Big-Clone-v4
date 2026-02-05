@@ -132,7 +132,7 @@ export class ProfilerOverlay {
     this.root.style.top = "12px";
     this.root.style.zIndex = "9999";
     this.root.style.display = "none";
-    this.root.style.pointerEvents = "none";
+    this.root.style.pointerEvents = "auto";
     this.root.style.userSelect = "none";
     this.styleElement = this.createStyles();
     document.body.appendChild(this.root);
@@ -279,12 +279,16 @@ export class ProfilerOverlay {
 
 #qf-profiler .qf-profiler__panel {
   width: 340px;
+  max-height: calc(100vh - 24px);
   background: linear-gradient(180deg, rgba(14, 20, 24, 0.9), rgba(6, 10, 12, 0.92));
   border: 1px solid rgba(150, 220, 215, 0.2);
   border-radius: 14px;
   padding: 12px 12px 10px;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(10px) saturate(140%);
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
 }
 
 #qf-profiler .qf-profiler__header {
@@ -421,6 +425,8 @@ export class ProfilerOverlay {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 #qf-profiler .qf-profiler__section {
