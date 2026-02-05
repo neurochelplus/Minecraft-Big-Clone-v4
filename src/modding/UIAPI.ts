@@ -94,20 +94,36 @@ export class UIAPI implements UIAPIInterface {
     div.innerHTML = html;
 
     // Удалить опасные теги
-    const dangerous = div.querySelectorAll('script, style, iframe, object, embed, link, meta');
+    const dangerous = div.querySelectorAll(
+      'script, style, iframe, object, embed, link, meta, form, base, applet, frame, frameset, template, svg, math'
+    );
     dangerous.forEach((el) => el.remove());
 
-    // Удалить on* атрибуты и javascript: ссылки
+    // Удалить on* атрибуты и опасные ссылки
     const allElements = div.querySelectorAll('*');
     allElements.forEach((el) => {
       const attrs = [...el.attributes];
       attrs.forEach((attr) => {
-        if (
-          attr.name.startsWith('on') ||
-          (attr.name === 'href' && attr.value.toLowerCase().startsWith('javascript:')) ||
-          (attr.name === 'src' && attr.value.toLowerCase().startsWith('javascript:'))
-        ) {
+        const name = attr.name.toLowerCase();
+        const value = attr.value.toLowerCase().trim();
+
+        // 1. Event handlers (on*)
+        // 2. Form actions (action, formaction)
+        if (name.startsWith('on') || name === 'action' || name === 'formaction') {
           el.removeAttribute(attr.name);
+          return;
+        }
+
+        // 3. Dangerous protocols in href/src
+        if (name === 'href' || name === 'src') {
+          if (
+            value.startsWith('javascript:') ||
+            value.startsWith('vbscript:') ||
+            value.startsWith('data:') ||
+            value.startsWith('file:')
+          ) {
+            el.removeAttribute(attr.name);
+          }
         }
       });
     });
