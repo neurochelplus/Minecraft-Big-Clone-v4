@@ -5,11 +5,13 @@ import { SaveCoordinator } from "./SaveCoordinator";
 export class AutoSave {
   private intervalId: number | null = null;
   private readonly SAVE_INTERVAL = AUTO_SAVE_INTERVAL;
+  private gameState: GameState;
+  private saveCoordinator: SaveCoordinator;
 
-  constructor(
-    private gameState: GameState,
-    private saveCoordinator: SaveCoordinator,
-  ) {}
+  constructor(gameState: GameState, saveCoordinator: SaveCoordinator) {
+    this.gameState = gameState;
+    this.saveCoordinator = saveCoordinator;
+  }
 
   public start(): void {
     this.intervalId = window.setInterval(() => {

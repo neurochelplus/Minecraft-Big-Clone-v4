@@ -68,7 +68,7 @@ function generateTerrain(
       if (height >= chunkHeight) height = chunkHeight - 1;
 
       for (let y = 0; y <= height; y++) {
-        let type = BLOCK.STONE;
+        let type: number = BLOCK.STONE;
         if (y === 0) type = BLOCK.BEDROCK;
         else if (y === height) type = BLOCK.GRASS;
         else if (y >= height - 3) type = BLOCK.DIRT;

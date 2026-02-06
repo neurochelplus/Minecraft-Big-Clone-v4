@@ -96,13 +96,7 @@ export class ChunkLoader {
 
     if (this.dataManager.hasChunkData(key)) {
       const data = this.dataManager.getChunkData(key)!;
-      this.meshManager.buildMesh(
-        cx,
-        cz,
-        data,
-        this.getBlockIndex.bind(this),
-        this.getBlock.bind(this),
-      );
+      this.buildChunkMesh(cx, cz, data);
       return;
     }
 
@@ -111,15 +105,7 @@ export class ChunkLoader {
 
   public processGenerationQueue(): void {
     this.generationQueue.process((cx, cz, data) => {
-      const key = `${cx},${cz}`;
-      this.dataManager.setChunkData(key, data, true);
-      this.meshManager.buildMesh(
-        cx,
-        cz,
-        data,
-        this.getBlockIndex.bind(this),
-        this.getBlock.bind(this),
-      );
+      this.processGeneratedChunk(cx, cz, data);
     });
 
     this.rebuildCounter++;
@@ -140,13 +126,7 @@ export class ChunkLoader {
 
       const data = this.dataManager.getChunkData(key);
       if (data) {
-        this.meshManager.rebuildMesh(
-          cx,
-          cz,
-          data,
-          this.getBlockIndex.bind(this),
-          this.getBlock.bind(this),
-        );
+        this.rebuildChunkMeshInternal(cx, cz, data);
       }
     }
     this.pendingMeshRebuilds.clear();
@@ -163,13 +143,7 @@ export class ChunkLoader {
   public rebuildChunkMesh(cx: number, cz: number): void {
     const key = `${cx},${cz}`;
     const data = this.dataManager.getChunkData(key);
-    this.meshManager.rebuildMesh(
-      cx,
-      cz,
-      data,
-      this.getBlockIndex.bind(this),
-      this.getBlock.bind(this),
-    );
+    this.rebuildChunkMeshInternal(cx, cz, data);
   }
 
   public getBlock(x: number, y: number, z: number): number {
@@ -214,13 +188,7 @@ export class ChunkLoader {
     const savedData = await this.persistence.loadChunk(key);
     if (savedData) {
       this.dataManager.setChunkData(key, savedData, false);
-      this.meshManager.buildMesh(
-        cx,
-        cz,
-        savedData,
-        this.getBlockIndex.bind(this),
-        this.getBlock.bind(this),
-      );
+      this.buildChunkMesh(cx, cz, savedData);
       return;
     }
 
@@ -229,15 +197,7 @@ export class ChunkLoader {
     return new Promise((resolve) => {
       const check = () => {
         this.generationQueue.process((genCx, genCz, data) => {
-          const genKey = `${genCx},${genCz}`;
-          this.dataManager.setChunkData(genKey, data, true);
-          this.meshManager.buildMesh(
-            genCx,
-            genCz,
-            data,
-            this.getBlockIndex.bind(this),
-            this.getBlock.bind(this),
-          );
+          this.processGeneratedChunk(genCx, genCz, data);
         });
 
         if (this.dataManager.hasChunkData(key)) {
@@ -293,6 +253,36 @@ export class ChunkLoader {
 
   public getDirtyChunks(): Set<string> {
     return this.dataManager.getDirtyChunks();
+  }
+
+  private processGeneratedChunk(cx: number, cz: number, data: Uint8Array): void {
+    const key = `${cx},${cz}`;
+    this.dataManager.setChunkData(key, data, true);
+    this.buildChunkMesh(cx, cz, data);
+  }
+
+  private buildChunkMesh(cx: number, cz: number, data: Uint8Array): void {
+    this.meshManager.buildMesh(
+      cx,
+      cz,
+      data,
+      this.getBlockIndex.bind(this),
+      this.getBlock.bind(this),
+    );
+  }
+
+  private rebuildChunkMeshInternal(
+    cx: number,
+    cz: number,
+    data: Uint8Array | undefined,
+  ): void {
+    this.meshManager.rebuildMesh(
+      cx,
+      cz,
+      data,
+      this.getBlockIndex.bind(this),
+      this.getBlock.bind(this),
+    );
   }
 
   private getBlockIndex(x: number, y: number, z: number): number {
