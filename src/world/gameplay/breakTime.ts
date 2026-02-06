@@ -6,6 +6,9 @@ export function getBreakTime(blockType: number, toolId: number = 0): number {
   switch (blockType) {
     case BLOCK.GRASS:
     case BLOCK.DIRT:
+    case BLOCK.SAND:
+    case BLOCK.SNOW:
+    case BLOCK.SNOW_GRASS:
       if (toolId === BLOCK.IRON_SHOVEL) time = 100;
       else if (toolId === BLOCK.STONE_SHOVEL) time = 200;
       else if (toolId === BLOCK.WOODEN_SHOVEL) time = 400;
@@ -14,6 +17,8 @@ export function getBreakTime(blockType: number, toolId: number = 0): number {
 
     case BLOCK.STONE:
     case BLOCK.FURNACE:
+    case BLOCK.SANDSTONE:
+    case BLOCK.ICE:
       if (toolId === BLOCK.IRON_PICKAXE) time = 400;
       else if (toolId === BLOCK.STONE_PICKAXE) time = 600;
       else if (toolId === BLOCK.WOODEN_PICKAXE) time = 1150;

@@ -109,8 +109,9 @@ export async function handleCreateWorld(options: CreateWorldOptions): Promise<vo
   try {
     const name = dom.createWorldNameInput.value.trim();
     const seed = parseSeed();
+    const worldGenPresetId = dom.createWorldPresetSelect.value;
 
-    const world = await game.world.createWorld({ name, seed });
+    const world = await game.world.createWorld({ name, seed, worldGenPresetId });
     await game.world.setActiveWorld(world.id);
     closeCreateDialog();
     await refresh(world.id);

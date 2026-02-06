@@ -159,11 +159,13 @@ export class MobManager {
           const y = this.findSurfaceY(x, z);
 
           if (y !== -1) {
-              // Check block below is Grass (ID 1)
-              // We need to check block type. world.ts has getBlock(x,y,z).
-              // Assuming ID 1 is Grass.
               const blockId = this.world.getBlock(x, y, z);
-              if (blockId === 1) { // Only spawn on grass
+              const biomeId = this.world.getBiomeAt(x, z);
+              const surfaceOk =
+                blockId === BLOCK.GRASS || blockId === BLOCK.SNOW_GRASS;
+              const biomeOk = biomeId === "plains" || biomeId === "forest";
+
+              if (surfaceOk && biomeOk) {
                   const mob = new WildBoar(this.world, this.scene, x + 0.5, y + 1, z + 0.5);
                   this.mobs.push(mob);
                   break;

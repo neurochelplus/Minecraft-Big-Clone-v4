@@ -1,5 +1,4 @@
 import { BLOCK } from "../../constants/Blocks";
-import { TerrainGenerator } from "../generation/TerrainGenerator";
 
 /**
  * Управление данными чанков (блоки, топология)
@@ -10,16 +9,16 @@ export class ChunkDataManager {
   
   private chunkSize: number;
   private chunkHeight: number;
-  private terrainGen: TerrainGenerator;
+  private getTerrainHeightAt: (worldX: number, worldZ: number) => number;
 
   constructor(
     chunkSize: number,
     chunkHeight: number,
-    terrainGen: TerrainGenerator,
+    getTerrainHeightAt: (worldX: number, worldZ: number) => number,
   ) {
     this.chunkSize = chunkSize;
     this.chunkHeight = chunkHeight;
-    this.terrainGen = terrainGen;
+    this.getTerrainHeightAt = getTerrainHeightAt;
   }
 
   /**
@@ -110,7 +109,7 @@ export class ChunkDataManager {
     const key = `${cx},${cz}`;
     const data = this.chunksData.get(key);
 
-    if (!data) return this.terrainGen.getTerrainHeight(worldX, worldZ);
+    if (!data) return this.getTerrainHeightAt(worldX, worldZ);
 
     const localX = worldX - cx * this.chunkSize;
     const localZ = worldZ - cz * this.chunkSize;

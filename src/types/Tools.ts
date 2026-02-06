@@ -8,6 +8,7 @@ export interface ToolDefinition {
 }
 
 export interface ToolTextureData {
-  texture: THREE.CanvasTexture;
+  texture: CanvasTexture;
   dataUrl: string;
 }
+import type { CanvasTexture } from "three";

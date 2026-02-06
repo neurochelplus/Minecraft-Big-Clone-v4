@@ -57,6 +57,26 @@ export class BlockColors {
       top: { r: 1.0, g: 1.0, b: 1.0 },
       side: { r: 1.0, g: 1.0, b: 1.0 },
     }],
+    [BLOCK.SAND, {
+      top: { r: 0.93, g: 0.86, b: 0.64 },
+      side: { r: 0.93, g: 0.86, b: 0.64 },
+    }],
+    [BLOCK.SANDSTONE, {
+      top: { r: 0.88, g: 0.8, b: 0.62 },
+      side: { r: 0.88, g: 0.8, b: 0.62 },
+    }],
+    [BLOCK.SNOW, {
+      top: { r: 0.97, g: 0.98, b: 1.0 },
+      side: { r: 0.97, g: 0.98, b: 1.0 },
+    }],
+    [BLOCK.SNOW_GRASS, {
+      top: { r: 0.98, g: 0.99, b: 1.0 },
+      side: { r: 0.82, g: 0.9, b: 0.82 },
+    }],
+    [BLOCK.ICE, {
+      top: { r: 0.74, g: 0.88, b: 0.98 },
+      side: { r: 0.74, g: 0.88, b: 0.98 },
+    }],
   ]);
 
   public static getColor(blockType: number, side: "top" | "side" = "top"): RGB {

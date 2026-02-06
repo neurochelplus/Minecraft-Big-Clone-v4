@@ -3,11 +3,22 @@ import { ChunkManager } from "./chunks/ChunkManager";
 import { logger } from "../utils/Logger";
 import type { SerializedInventory } from "../types/Inventory";
 import type { WorldSummary } from "../contracts/world";
+import type { BiomeId } from "./generation/runtime/BiomeRegistry";
+import type { BiomeTint } from "./generation/runtime/BiomeVisuals";
+import { getBiomeGrassTint } from "./generation/runtime/BiomeVisuals";
 import { getBreakTime } from "./gameplay/breakTime";
 import { WorldRepository } from "./persistence/WorldRepository";
 import { WORLD_SCHEMA_VERSION } from "./persistence/types";
 import { clampSeed, nextWorldName } from "./persistence/worldNaming";
 import { preGenerateAround as runPreGenerateAround } from "./runtime/pregeneration";
+import { FeatureToggles } from "../utils/FeatureToggles";
+import {
+  createWorldGenProfile,
+  getWorldGenPresetIdFromProfile,
+  normalizeWorldGenPresetId,
+  WORLD_GEN_PRESET_BIOMES_V3,
+  WORLD_GEN_PRESET_LEGACY,
+} from "./generation/WorldGenPresets";
 
 type FurnaceWorldAware = {
   setWorldId(worldId: string): void;
@@ -33,11 +44,20 @@ export class World {
     return this.repository.listWorlds();
   }
 
-  public async createWorld(input: { name: string; seed?: number }): Promise<WorldSummary> {
+  public async createWorld(input: {
+    name: string;
+    seed?: number;
+    worldGenPresetId?: string;
+  }): Promise<WorldSummary> {
     const worlds = await this.repository.readWorldIndex();
     const now = Date.now();
     const name = input.name.trim() || nextWorldName(worlds);
     const seed = clampSeed(input.seed);
+    const biomesEnabled = FeatureToggles.getInstance().isEnabled("world_biomes_v1");
+    const requestedPreset = input.worldGenPresetId
+      ? normalizeWorldGenPresetId(input.worldGenPresetId)
+      : WORLD_GEN_PRESET_BIOMES_V3;
+    const presetId = biomesEnabled ? requestedPreset : WORLD_GEN_PRESET_LEGACY;
 
     const world: WorldSummary = {
       id: crypto.randomUUID(),
@@ -45,12 +65,15 @@ export class World {
       seed,
       createdAt: now,
       lastPlayedAt: now,
+      worldGen: createWorldGenProfile(presetId),
     };
 
     worlds.push(world);
     await this.repository.writeWorldIndex(worlds);
 
-    logger.info(`Created world ${world.id} (${world.name}) seed=${world.seed}`);
+    logger.info(
+      `Created world ${world.id} (${world.name}) seed=${world.seed} preset=${presetId}`,
+    );
     return world;
   }
 
@@ -69,10 +92,12 @@ export class World {
       throw new Error(`World ${worldId} not found`);
     }
 
+    const presetId = getWorldGenPresetIdFromProfile(world.worldGen);
+
     if (this.chunkManager.getWorldId() !== world.id) {
-      await this.chunkManager.switchWorld(world.id, world.seed);
+      await this.chunkManager.switchWorld(world.id, world.seed, presetId);
     } else {
-      this.chunkManager.setSeed(world.seed);
+      this.chunkManager.setGenerationContext(world.seed, presetId);
     }
 
     this.furnaceManager?.setWorldId(world.id);
@@ -102,7 +127,8 @@ export class World {
     const meta = await this.repository.loadPlayerMeta(resolvedWorldId);
 
     if (meta?.seed !== undefined) {
-      this.chunkManager.setSeed(meta.seed);
+      const worldPresetId = getWorldGenPresetIdFromProfile(world.worldGen);
+      this.chunkManager.setGenerationContext(meta.seed, worldPresetId);
       logger.debug(`Loaded seed: ${meta.seed} for world ${resolvedWorldId}`);
     } else {
       logger.debug(
@@ -185,7 +211,11 @@ export class World {
     logger.info(`World ${worldId} deleted`);
   }
 
-  public update(playerPos: THREE.Vector3) {
+  public update(
+    playerPos: THREE.Vector3,
+    _viewDir?: THREE.Vector3,
+    _profiler?: unknown,
+  ) {
     this.chunkManager.update(playerPos);
   }
 
@@ -234,6 +264,14 @@ export class World {
 
   public getTopY(worldX: number, worldZ: number): number {
     return this.chunkManager.getTopY(worldX, worldZ);
+  }
+
+  public getBiomeAt(worldX: number, worldZ: number): BiomeId {
+    return this.chunkManager.getBiomeAt(worldX, worldZ);
+  }
+
+  public getBiomeTintAt(worldX: number, worldZ: number): BiomeTint {
+    return getBiomeGrassTint(this.getBiomeAt(worldX, worldZ));
   }
 
   public getChunkCount(): { visible: number; total: number } {

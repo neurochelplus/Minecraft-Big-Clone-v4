@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { World } from "../world/World";
-import { Player } from "../player/Player";
+import type { IWorld } from "../contracts/world";
+import type { IPlayerInput } from "../contracts/player";
 import { MobState, type MobStateType } from "../types/Mobs";
 
 export { MobState };
@@ -25,7 +25,7 @@ export class Mob {
   protected wanderAngle = 0;
 
   // References
-  protected world: World;
+  protected world: IWorld;
   protected scene: THREE.Scene;
 
   // Stats
@@ -41,7 +41,7 @@ export class Mob {
   private fireMesh: THREE.Mesh | null = null;
 
   constructor(
-    world: World,
+    world: IWorld,
     scene: THREE.Scene,
     x: number,
     y: number,
@@ -169,7 +169,7 @@ export class Mob {
 
   update(
     delta: number,
-    player?: THREE.Vector3 | Player,
+    player?: THREE.Vector3 | IPlayerInput,
     onAttack?: (damage: number) => void,
     isDay?: boolean,
   ) {
@@ -178,8 +178,7 @@ export class Mob {
     if (player instanceof THREE.Vector3) {
       playerPos = player;
     } else if (player) {
-      // @ts-ignore
-      playerPos = player.physics.controls.object.position;
+      playerPos = player.physics.controls.object.position as THREE.Vector3;
     }
 
     if (!this.isStunned) {

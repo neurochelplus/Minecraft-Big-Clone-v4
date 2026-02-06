@@ -13,41 +13,37 @@ export class InventoryController {
   constructor(
     controls: IControls,
     player: IPlayerInput,
-    world: IWorld,
+    _world: IWorld,
     inventory: IInventory,
     inventoryUI: IInventoryUI,
     dragDrop: IDragDrop,
     craftingSystem: ICrafting,
     craftingUI: ICraftingUI,
     furnaceUI: IFurnaceUI,
-    furnaceManager: IFurnaceManager,
+    _furnaceManager: IFurnaceManager,
     saveCoordinator: SaveCoordinator,
     isMobile: boolean,
   ) {
     this.controls = controls;
     this.player = player;
-    this.world = world;
     this.inventory = inventory;
     this.inventoryUI = inventoryUI;
     this.dragDrop = dragDrop;
     this.craftingSystem = craftingSystem;
     this.craftingUI = craftingUI;
     this.furnaceUI = furnaceUI;
-    this.furnaceManager = furnaceManager;
     this.saveCoordinator = saveCoordinator;
     this.isMobile = isMobile;
   }
 
   private controls: IControls;
   private player: IPlayerInput;
-  private world: IWorld;
   private inventory: IInventory;
   private inventoryUI: IInventoryUI;
   private dragDrop: IDragDrop;
   private craftingSystem: ICrafting;
   private craftingUI: ICraftingUI;
   private furnaceUI: IFurnaceUI;
-  private furnaceManager: IFurnaceManager;
   private saveCoordinator: SaveCoordinator;
   private isMobile: boolean;
 

@@ -1,20 +1,21 @@
 import * as THREE from "three";
-import { TerrainGenerator } from "../generation/TerrainGenerator";
-import { StructureGenerator } from "../generation/StructureGenerator";
 import { ChunkPersistence } from "./ChunkPersistence";
 import { ChunkGenerationQueue } from "./ChunkGenerationQueue";
 import { ChunkDataManager } from "./ChunkDataManager";
 import { ChunkMeshManager } from "./ChunkMeshManager";
 import type { ChunkMesh } from "./ChunkMeshManager";
+import type { BiomeId } from "../generation/runtime/BiomeRegistry";
+import {
+  WORLD_GEN_PRESET_LEGACY,
+  normalizeWorldGenPresetId,
+  type WorldGenPresetId,
+} from "../generation/WorldGenPresets";
 
 export class ChunkLoader {
   private chunkSize: number;
   private chunkHeight: number;
 
-  private terrainGen: TerrainGenerator;
-  private structureGen: StructureGenerator;
   private persistence: ChunkPersistence;
-
   private generationQueue: ChunkGenerationQueue;
   private dataManager: ChunkDataManager;
   private meshManager: ChunkMeshManager;
@@ -23,34 +24,35 @@ export class ChunkLoader {
   private rebuildCounter: number = 0;
   private readonly REBUILD_INTERVAL: number = 2;
   private worldId: string = "default";
+  private seed: number;
+  private presetId: WorldGenPresetId;
 
   constructor(
     scene: THREE.Scene,
     chunkSize: number,
     chunkHeight: number,
     seed?: number,
+    presetId: WorldGenPresetId = WORLD_GEN_PRESET_LEGACY,
   ) {
     this.chunkSize = chunkSize;
     this.chunkHeight = chunkHeight;
+    this.seed = seed ?? 0;
+    this.presetId = presetId;
 
-    this.terrainGen = new TerrainGenerator(seed);
-    this.structureGen = new StructureGenerator(this.terrainGen);
     this.persistence = new ChunkPersistence();
-
     this.generationQueue = new ChunkGenerationQueue(
-      this.terrainGen,
-      this.structureGen,
       this.persistence,
       chunkSize,
       chunkHeight,
+      this.seed,
+      this.presetId,
     );
-
     this.dataManager = new ChunkDataManager(
       chunkSize,
       chunkHeight,
-      this.terrainGen,
+      (worldX: number, worldZ: number) =>
+        this.generationQueue.getTerrainHeight(worldX, worldZ),
     );
-
     this.meshManager = new ChunkMeshManager(scene, chunkSize, chunkHeight);
   }
 
@@ -63,21 +65,30 @@ export class ChunkLoader {
     return this.worldId;
   }
 
-  public async switchWorld(worldId: string, seed: number): Promise<void> {
+  public async switchWorld(
+    worldId: string,
+    seed: number,
+    presetId: WorldGenPresetId,
+  ): Promise<void> {
     this.worldId = worldId;
     this.persistence.setWorldId(worldId);
     this.clearInMemory();
-    this.setSeed(seed);
+    this.setGenerationContext(seed, presetId);
     await this.persistence.init();
   }
 
   public getSeed(): number {
-    return this.terrainGen.getSeed();
+    return this.seed;
   }
 
   public setSeed(seed: number): void {
-    this.terrainGen.setSeed(seed);
-    this.generationQueue.setSeed(seed);
+    this.setGenerationContext(seed, this.presetId);
+  }
+
+  public setGenerationContext(seed: number, presetId: string): void {
+    this.seed = seed;
+    this.presetId = normalizeWorldGenPresetId(presetId);
+    this.generationQueue.setGenerationContext(this.seed, this.presetId);
   }
 
   public getNoiseTexture(): THREE.DataTexture {
@@ -155,18 +166,15 @@ export class ChunkLoader {
 
     const cx = Math.floor(x / this.chunkSize);
     const cz = Math.floor(z / this.chunkSize);
-
     this.pendingMeshRebuilds.add(`${cx},${cz}`);
 
     const localX = x - cx * this.chunkSize;
     const localZ = z - cz * this.chunkSize;
 
     if (localX === 0) this.pendingMeshRebuilds.add(`${cx - 1},${cz}`);
-    if (localX === this.chunkSize - 1)
-      this.pendingMeshRebuilds.add(`${cx + 1},${cz}`);
+    if (localX === this.chunkSize - 1) this.pendingMeshRebuilds.add(`${cx + 1},${cz}`);
     if (localZ === 0) this.pendingMeshRebuilds.add(`${cx},${cz - 1}`);
-    if (localZ === this.chunkSize - 1)
-      this.pendingMeshRebuilds.add(`${cx},${cz + 1}`);
+    if (localZ === this.chunkSize - 1) this.pendingMeshRebuilds.add(`${cx},${cz + 1}`);
   }
 
   public hasBlock(x: number, y: number, z: number): boolean {
@@ -177,13 +185,19 @@ export class ChunkLoader {
     return this.dataManager.getTopY(worldX, worldZ);
   }
 
+  public getBiomeAt(worldX: number, worldZ: number): BiomeId {
+    return this.generationQueue.getBiomeAt(worldX, worldZ);
+  }
+
   public isChunkLoaded(x: number, z: number): boolean {
     return this.dataManager.isChunkLoaded(x, z);
   }
 
   public async waitForChunk(cx: number, cz: number): Promise<void> {
     const key = `${cx},${cz}`;
-    if (this.dataManager.hasChunkData(key)) return;
+    if (this.dataManager.hasChunkData(key)) {
+      return;
+    }
 
     const savedData = await this.persistence.loadChunk(key);
     if (savedData) {
@@ -238,7 +252,6 @@ export class ChunkLoader {
     this.rebuildCounter = 0;
   }
 
-  // Backward-compatible alias
   public async clear(): Promise<void> {
     await this.clearCurrentWorld();
   }
@@ -268,6 +281,7 @@ export class ChunkLoader {
       data,
       this.getBlockIndex.bind(this),
       this.getBlock.bind(this),
+      this.getBiomeAt.bind(this),
     );
   }
 
@@ -282,6 +296,7 @@ export class ChunkLoader {
       data,
       this.getBlockIndex.bind(this),
       this.getBlock.bind(this),
+      this.getBiomeAt.bind(this),
     );
   }
 

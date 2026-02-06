@@ -2,6 +2,10 @@ import type { ChunkData, ChunkGenContext, IChunkDecorator } from "../../../contr
 import { StructureGenerator } from "../StructureGenerator";
 import { TerrainGenerator } from "../TerrainGenerator";
 
+/**
+ * @deprecated Legacy decorator for legacy generator benchmarks/tests.
+ * Runtime structure generation uses `generation/runtime/GenerateChunk.ts`.
+ */
 export class StructureDecorator implements IChunkDecorator {
   private terrainGen: TerrainGenerator;
 

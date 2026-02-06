@@ -48,7 +48,7 @@ const getNeighborBlock = (worldX: number, worldY: number, worldZ: number) => {
   return chunk.data[index];
 };
 
-describe("ChunkMeshDataBuilder performance", () => {
+describe("Legacy ChunkMeshDataBuilder performance", () => {
   bench("buildMeshData (16x64)", () => {
     ChunkMeshDataBuilder.buildMeshData(
       chunk.data,

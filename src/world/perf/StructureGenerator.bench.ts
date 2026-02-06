@@ -27,7 +27,7 @@ const createBaseTerrain = () => {
   return data;
 };
 
-describe("StructureGenerator performance", () => {
+describe("Legacy StructureGenerator performance", () => {
   const base = createBaseTerrain();
   bench("generateTrees (16x64)", () => {
     const data = base.slice();

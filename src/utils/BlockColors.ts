@@ -14,6 +14,11 @@ export function getBlockColor(id: number): string {
   if (id === 12) return "#111111"; // Coal
   if (id === 13) return "#E0E0E0"; // Iron Ingot
   if (id === 14) return "#505050"; // Furnace
+  if (id === 15) return "#EEDCA6"; // Sand
+  if (id === 16) return "#D7C28E"; // Sandstone
+  if (id === 17) return "#F6F8FF"; // Snow
+  if (id === 18) return "#D1E6D1"; // Snow Grass
+  if (id === 19) return "#A4D9F4"; // Ice
   if (id >= 20) return "transparent"; // Tools
   return "#fff"; // Default
 }

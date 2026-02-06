@@ -2,6 +2,10 @@ import { BLOCK } from "../../constants/Blocks";
 import type { TerrainGenerator } from "./TerrainGenerator";
 import type { RngLike } from "../../contracts/chunks";
 
+/**
+ * @deprecated Legacy structure generator used only by legacy decorators/tests.
+ * Runtime world generation uses `generation/runtime/GenerateChunk.ts`.
+ */
 export class StructureGenerator {
   private terrainGen: TerrainGenerator;
   private nextRandom: () => number;

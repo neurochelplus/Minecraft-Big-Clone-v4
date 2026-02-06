@@ -24,7 +24,7 @@ const createGenerator = (seed: number, size = 16, height = 64) => {
   });
 };
 
-describe("ChunkGenerator performance", () => {
+describe("Legacy ChunkGenerator performance", () => {
   const gen = createGenerator(1337);
   bench("generateChunk (16x64)", () => {
     gen.generateChunk(0, 0);

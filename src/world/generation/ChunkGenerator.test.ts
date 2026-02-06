@@ -24,7 +24,7 @@ const createGenerator = (seed: number, size = 8, height = 16) => {
   });
 };
 
-describe("ChunkGenerator", () => {
+describe("Legacy ChunkGenerator", () => {
   it("is deterministic for the same seed", () => {
     const gen = createGenerator(123);
     const a = gen.generateChunk(0, 0);

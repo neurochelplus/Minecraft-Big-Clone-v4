@@ -3,6 +3,7 @@ import { PerspectiveCamera } from "three";
 import { Scene } from "three";
 import { World } from "../world/World";
 import { BLOCK } from "../constants/Blocks";
+import type { IControls } from "../contracts/controls";
 
 export class BlockBreaking {
   private crackMesh: THREE.Mesh;
@@ -10,7 +11,7 @@ export class BlockBreaking {
   private raycaster: THREE.Raycaster;
   private camera: PerspectiveCamera;
   private scene: Scene;
-  private controls: PointerLockControls;
+  private controls: IControls;
   private cursorMesh?: THREE.Mesh;
   
   // Raycast кэширование
@@ -34,7 +35,7 @@ export class BlockBreaking {
   constructor(
     scene: Scene,
     camera: PerspectiveCamera,
-    controls: any,
+    controls: IControls,
     getSelectedSlotItem: () => number,
     onBlockBreak?: (x: number, y: number, z: number, blockId: number) => void,
     cursorMesh?: THREE.Mesh,

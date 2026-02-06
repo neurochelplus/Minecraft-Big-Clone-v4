@@ -1,19 +1,20 @@
 import * as THREE from 'three';
 import { PerspectiveCamera } from 'three';
 import { Scene } from 'three';
+import type { IControls } from "../contracts/controls";
 
 export class BlockCursor {
   private mesh: THREE.Mesh;
   private raycaster: THREE.Raycaster;
   private camera: PerspectiveCamera;
   private scene: Scene;
-  private controls: PointerLockControls; // PointerLockControls
+  private controls: IControls;
   private readonly MAX_DISTANCE = 6;
 
   constructor(
     scene: Scene,
     camera: PerspectiveCamera,
-    controls: PointerLockControls
+    controls: IControls
   ) {
     this.camera = camera;
     this.scene = scene;

@@ -1,22 +1,22 @@
-import { CraftingSystem } from "./CraftingSystem";
-import { Inventory } from "../inventory/Inventory";
-import { InventoryUI } from "../inventory/InventoryUI";
+import type { ICrafting } from "../contracts/crafting";
+import type { IInventory } from "../contracts/inventory";
+import type { IInventoryUI } from "../contracts/ui";
 import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { getBlockColor } from "../utils/BlockColors";
 import { RECIPES } from "./Recipes";
-import type { CraftingRecipe, RecipeIngredient } from "../types/Recipes";
+import type { Recipe } from "./Recipes";
 
 export class MobileCraftingList {
-  private craftingSystem: CraftingSystem;
-  private inventory: Inventory;
-  private inventoryUI: InventoryUI;
+  private craftingSystem: ICrafting;
+  private inventory: IInventory;
+  private inventoryUI: IInventoryUI;
   private mobileCraftingList: HTMLElement;
   private onUpdate: () => void;
 
   constructor(
-    craftingSystem: CraftingSystem,
-    inventory: Inventory,
-    inventoryUI: InventoryUI,
+    craftingSystem: ICrafting,
+    inventory: IInventory,
+    inventoryUI: IInventoryUI,
     onUpdate: () => void,
   ) {
     this.craftingSystem = craftingSystem;
@@ -69,28 +69,28 @@ export class MobileCraftingList {
     return map;
   }
 
-  private shouldShowRecipe(recipe: CraftingRecipe): boolean {
+  private shouldShowRecipe(recipe: Recipe): boolean {
     if (this.craftingSystem.isCraftingTable) return true;
 
     let needs3x3 = false;
     if (recipe.pattern) {
-      if (recipe.pattern.length > 2 || recipe.pattern[0].length > 2) {
+      if (recipe.pattern.length > 2 || recipe.pattern[0]?.length > 2) {
         needs3x3 = true;
       }
     } else if (recipe.ingredients) {
       let totalIngredients = 0;
-      recipe.ingredients.forEach((i: RecipeIngredient) => (totalIngredients += i.count));
+      recipe.ingredients.forEach((i) => (totalIngredients += i.count));
       if (totalIngredients > 4) needs3x3 = true;
     }
 
     return !needs3x3;
   }
 
-  private getRecipeRequirements(recipe: CraftingRecipe): Map<number, number> {
+  private getRecipeRequirements(recipe: Recipe): Map<number, number> {
     const reqMap = new Map<number, number>();
 
     if (recipe.ingredients) {
-      recipe.ingredients.forEach((i: RecipeIngredient) =>
+      recipe.ingredients.forEach((i) =>
         reqMap.set(i.id, (reqMap.get(i.id) || 0) + i.count),
       );
     } else if (recipe.pattern && recipe.keys) {
@@ -98,7 +98,9 @@ export class MobileCraftingList {
         for (const char of row) {
           if (char !== " ") {
             const id = recipe.keys[char];
-            reqMap.set(id, (reqMap.get(id) || 0) + 1);
+            if (id !== undefined) {
+              reqMap.set(id, (reqMap.get(id) || 0) + 1);
+            }
           }
         }
       }
@@ -119,7 +121,7 @@ export class MobileCraftingList {
   }
 
   private createRecipeButton(
-    recipe: CraftingRecipe,
+    recipe: Recipe,
     reqMap: Map<number, number>,
   ): HTMLElement {
     const btn = document.createElement("div");
@@ -161,7 +163,7 @@ export class MobileCraftingList {
     return container;
   }
 
-  private createResultIcon(recipe: any): HTMLElement {
+  private createResultIcon(recipe: Recipe): HTMLElement {
     const icon = document.createElement("div");
     icon.className = "block-icon";
     this.applyIconStyle(icon, recipe.result.id);
@@ -191,7 +193,7 @@ export class MobileCraftingList {
     }
   }
 
-  private handleCraft(recipe: CraftingRecipe, reqMap: Map<number, number>) {
+  private handleCraft(recipe: Recipe, reqMap: Map<number, number>) {
     const currentInvMap = this.getInventoryMap();
     if (!this.canCraftRecipe(reqMap, currentInvMap)) return;
 

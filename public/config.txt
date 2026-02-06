@@ -10,4 +10,7 @@ show_fps=off
 show_cli=off
 
 # Enable day/night toggle keys K and L (K=night, L=day)
-enable_day_night_keys=enable
+enable_day_night_keys=off
+
+# Enable biomes v3 world generation preset for new worlds
+world_biomes_v1=on

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { ChunkMeshBuilder } from "./ChunkMeshBuilder";
+import { ChunkMeshBuilder, type BiomeAtLookup } from "./ChunkMeshBuilder";
 
 export type ChunkMesh = {
   mesh: THREE.Mesh;
@@ -34,6 +34,7 @@ export class ChunkMeshManager {
     data: Uint8Array,
     getBlockIndex: (x: number, y: number, z: number) => number,
     getNeighborBlock: (x: number, y: number, z: number) => number,
+    getBiomeAtForTint?: BiomeAtLookup,
   ): void {
     const key = `${cx},${cz}`;
     if (this.chunks.has(key)) return;
@@ -46,6 +47,7 @@ export class ChunkMeshManager {
       this.chunkHeight,
       getBlockIndex,
       getNeighborBlock,
+      getBiomeAtForTint,
     );
 
     this.scene.add(mesh);
@@ -61,6 +63,7 @@ export class ChunkMeshManager {
     data: Uint8Array | undefined,
     getBlockIndex: (x: number, y: number, z: number) => number,
     getNeighborBlock: (x: number, y: number, z: number) => number,
+    getBiomeAtForTint?: BiomeAtLookup,
   ): void {
     const key = `${cx},${cz}`;
     const chunk = this.chunks.get(key);
@@ -73,7 +76,14 @@ export class ChunkMeshManager {
     }
 
     if (data) {
-      this.buildMesh(cx, cz, data, getBlockIndex, getNeighborBlock);
+      this.buildMesh(
+        cx,
+        cz,
+        data,
+        getBlockIndex,
+        getNeighborBlock,
+        getBiomeAtForTint,
+      );
     }
   }
 

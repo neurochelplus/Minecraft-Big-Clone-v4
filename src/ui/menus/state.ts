@@ -27,6 +27,7 @@ export function setCreateDialogControlsDisabled(
   const { dom, buttons } = context;
   dom.createWorldNameInput.disabled = disabled;
   dom.createWorldSeedInput.disabled = disabled;
+  dom.createWorldPresetSelect.disabled = disabled;
   buttons.btnCreateWorldConfirm.disabled = disabled;
   buttons.btnCreateWorldCancel.disabled = disabled;
 }

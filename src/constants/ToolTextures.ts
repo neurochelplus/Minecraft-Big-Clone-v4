@@ -163,6 +163,41 @@ export function initToolTextures() {
       );
     }
 
+    if (BLOCK_DEFS.SAND?.pattern && BLOCK_DEFS.SAND.colors) {
+      TOOL_TEXTURES[BLOCK.SAND] = TextureGenerator.generateBlockIcon(
+        BLOCK_DEFS.SAND.pattern,
+        BLOCK_DEFS.SAND.colors,
+      );
+    }
+
+    if (BLOCK_DEFS.SANDSTONE?.pattern && BLOCK_DEFS.SANDSTONE.colors) {
+      TOOL_TEXTURES[BLOCK.SANDSTONE] = TextureGenerator.generateBlockIcon(
+        BLOCK_DEFS.SANDSTONE.pattern,
+        BLOCK_DEFS.SANDSTONE.colors,
+      );
+    }
+
+    if (BLOCK_DEFS.SNOW?.pattern && BLOCK_DEFS.SNOW.colors) {
+      TOOL_TEXTURES[BLOCK.SNOW] = TextureGenerator.generateBlockIcon(
+        BLOCK_DEFS.SNOW.pattern,
+        BLOCK_DEFS.SNOW.colors,
+      );
+    }
+
+    if (BLOCK_DEFS.SNOW_GRASS?.pattern && BLOCK_DEFS.SNOW_GRASS.colors) {
+      TOOL_TEXTURES[BLOCK.SNOW_GRASS] = TextureGenerator.generateBlockIcon(
+        BLOCK_DEFS.SNOW_GRASS.pattern,
+        BLOCK_DEFS.SNOW_GRASS.colors,
+      );
+    }
+
+    if (BLOCK_DEFS.ICE?.pattern && BLOCK_DEFS.ICE.colors) {
+      TOOL_TEXTURES[BLOCK.ICE] = TextureGenerator.generateBlockIcon(
+        BLOCK_DEFS.ICE.pattern,
+        BLOCK_DEFS.ICE.colors,
+      );
+    }
+
     console.log("Tool textures generated.");
   } catch (e) {
     console.error("Failed to generate tool textures:", e);

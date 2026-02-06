@@ -3,6 +3,10 @@ import type { ChunkData, ChunkGenContext, IChunkDecorator } from "../../../contr
 import { BLOCK } from "../../../constants/Blocks";
 import { Rng } from "../../../utils/Rng";
 
+/**
+ * @deprecated Legacy decorator for legacy generator benchmarks/tests.
+ * Runtime cave/terrain generation uses `generation/runtime/GenerateChunk.ts`.
+ */
 export class CaveDecorator implements IChunkDecorator {
   private noise3D: (x: number, y: number, z: number) => number;
   private enabled: boolean;
