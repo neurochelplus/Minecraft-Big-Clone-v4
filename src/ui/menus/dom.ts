@@ -20,7 +20,7 @@ export function getMenusDomElements(): MenusDomElements {
 export function getMenusButtons(): MenusButtons {
   return {
     btnNewGame: getRequiredElement("btn-new-game"),
-    btnContinue: getRequiredElement("btn-continue"),
+    btnContinue: getRequiredElement("btn-play-world"),
     btnResume: getRequiredElement("btn-resume"),
     btnExit: getRequiredElement("btn-exit"),
     btnSettingsMain: getRequiredElement("btn-settings-main"),
