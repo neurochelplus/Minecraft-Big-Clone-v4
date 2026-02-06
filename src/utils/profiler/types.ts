@@ -1,4 +1,5 @@
 export type ProfilerStat = {
+  count: number;
   avg: number;
   max: number;
   last: number;
@@ -16,4 +17,7 @@ export type ProfilerStats = {
   frameSamples: number[];
   sampleSize: number;
   budgetMs: number;
+  freezeThresholdMs: number;
+  freezeCount: number;
+  totalFrames: number;
 };

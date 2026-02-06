@@ -3,21 +3,27 @@ import type { ProfilerStats, ProfilerStat } from "./types";
 type ProfilerOptions = {
   sampleSize?: number;
   targetFps?: number;
+  freezeThresholdMs?: number;
 };
 
 export class FrameProfiler {
   private sampleSize: number;
   private budgetMs: number;
+  private freezeThresholdMs: number;
   private frameStart: number | null = null;
   private frameTimes: number[] = [];
+  private totalFrames = 0;
   private sectionStarts = new Map<string, number>();
   private sectionTimes = new Map<string, number[]>();
+  private sectionCounts = new Map<string, number>();
   private valueSamples = new Map<string, number[]>();
+  private valueCounts = new Map<string, number>();
 
   constructor(options: ProfilerOptions = {}) {
     this.sampleSize = options.sampleSize ?? 120;
     const targetFps = options.targetFps ?? 60;
     this.budgetMs = targetFps > 0 ? 1000 / targetFps : 16.67;
+    this.freezeThresholdMs = options.freezeThresholdMs ?? 33.33;
   }
 
   public startFrame(now: number): void {
@@ -27,6 +33,7 @@ export class FrameProfiler {
   public endFrame(now: number): void {
     if (this.frameStart === null) return;
     this.pushSample(this.frameTimes, now - this.frameStart);
+    this.totalFrames += 1;
     this.frameStart = null;
   }
 
@@ -41,6 +48,7 @@ export class FrameProfiler {
     const samples = this.sectionTimes.get(name) ?? [];
     this.pushSample(samples, duration);
     this.sectionTimes.set(name, samples);
+    this.sectionCounts.set(name, (this.sectionCounts.get(name) ?? 0) + 1);
     this.sectionStarts.delete(name);
   }
 
@@ -48,20 +56,33 @@ export class FrameProfiler {
     const samples = this.valueSamples.get(name) ?? [];
     this.pushSample(samples, value);
     this.valueSamples.set(name, samples);
+    this.valueCounts.set(name, (this.valueCounts.get(name) ?? 0) + 1);
+  }
+
+  public reset(): void {
+    this.frameStart = null;
+    this.frameTimes = [];
+    this.totalFrames = 0;
+    this.sectionStarts.clear();
+    this.sectionTimes.clear();
+    this.sectionCounts.clear();
+    this.valueSamples.clear();
+    this.valueCounts.clear();
   }
 
   public getStats(): ProfilerStats {
-    const frame = this.computeStats(this.frameTimes);
+    const frame = this.computeStats(this.frameTimes, this.totalFrames);
     const fps = frame.avg > 0 ? 1000 / frame.avg : 0;
     const fpsLast = frame.last > 0 ? 1000 / frame.last : 0;
     const sections: Record<string, ProfilerStat> = {};
     for (const [name, times] of this.sectionTimes.entries()) {
-      sections[name] = this.computeStats(times);
+      sections[name] = this.computeStats(times, this.sectionCounts.get(name) ?? 0);
     }
     const values: Record<string, ProfilerStat> = {};
     for (const [name, list] of this.valueSamples.entries()) {
-      values[name] = this.computeStats(list);
+      values[name] = this.computeStats(list, this.valueCounts.get(name) ?? 0);
     }
+    const freezeCount = this.frameTimes.filter((time) => time > this.freezeThresholdMs).length;
     return {
       fps,
       fpsLast,
@@ -71,6 +92,9 @@ export class FrameProfiler {
       frameSamples: [...this.frameTimes],
       sampleSize: this.sampleSize,
       budgetMs: this.budgetMs,
+      freezeThresholdMs: this.freezeThresholdMs,
+      freezeCount,
+      totalFrames: this.totalFrames,
     };
   }
 
@@ -81,9 +105,9 @@ export class FrameProfiler {
     }
   }
 
-  private computeStats(list: number[]): ProfilerStat {
+  private computeStats(list: number[], count: number): ProfilerStat {
     if (list.length === 0) {
-      return { avg: 0, max: 0, last: 0, min: 0, p95: 0, p99: 0 };
+      return { count: 0, avg: 0, max: 0, last: 0, min: 0, p95: 0, p99: 0 };
     }
     let sum = 0;
     let max = -Infinity;
@@ -105,6 +129,7 @@ export class FrameProfiler {
     );
     const p99 = sorted[p99Index] ?? sorted[sorted.length - 1];
     return {
+      count,
       avg: sum / list.length,
       max,
       last: list[list.length - 1],

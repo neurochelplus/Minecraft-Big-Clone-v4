@@ -8,7 +8,11 @@ import {
 import { buildSparkline } from "./overlay/sparkline";
 import { createProfilerStyles } from "./overlay/styles";
 import { clamp, formatMs, formatNumber, pressureClass, safeNumber } from "./overlay/formatters";
-import { renderSectionRows, renderValueRows } from "./overlay/render";
+import {
+  renderSectionRows,
+  renderTopOperationsTable,
+  renderValueRows,
+} from "./overlay/render";
 
 export class ProfilerOverlay {
   private root: HTMLDivElement;
@@ -16,10 +20,12 @@ export class ProfilerOverlay {
   private visible = false;
   private maxSections: number;
   private maxValues: number;
+  private onReset?: () => void;
 
   constructor(options: ProfilerOverlayOptions = {}) {
     this.maxSections = options.maxSections ?? DEFAULT_MAX_SECTIONS;
     this.maxValues = options.maxValues ?? DEFAULT_MAX_VALUES;
+    this.onReset = options.onReset;
     this.root = document.createElement("div");
     this.root.id = PROFILER_ROOT_ID;
     this.root.style.position = "fixed";
@@ -29,6 +35,12 @@ export class ProfilerOverlay {
     this.root.style.display = "none";
     this.root.style.pointerEvents = "auto";
     this.root.style.userSelect = "none";
+    this.root.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.dataset.action !== "reset-profiler") return;
+      this.onReset?.();
+    });
     this.styleElement = createProfilerStyles();
     document.body.appendChild(this.root);
   }
@@ -50,10 +62,14 @@ export class ProfilerOverlay {
     const frameP99 = safeNumber(stats.frame.p99);
     const frameMax = safeNumber(stats.frame.max);
     const frameMin = safeNumber(stats.frame.min);
+    const freezeCount = safeNumber(stats.freezeCount);
+    const totalFrames = Math.max(1, safeNumber(stats.totalFrames));
+    const freezePct = clamp((freezeCount / totalFrames) * 100, 0, 100);
     const pressure = budgetMs > 0 ? frameAvg / budgetMs : 0;
     const pressurePct = Math.round(clamp(pressure * 100, 0, 200));
     const pressureBar = clamp(pressure * 100, 0, 100);
     const pressureStateClass = pressureClass(pressure);
+    const topOpsTable = renderTopOperationsTable(stats, this.maxSections);
     const sectionRows = renderSectionRows(stats, budgetMs, this.maxSections);
     const valueRows = renderValueRows(stats, this.maxValues);
     const sparkline = buildSparkline(stats.frameSamples, budgetMs);
@@ -89,6 +105,11 @@ export class ProfilerOverlay {
         frameMin,
       )} | max ${formatMs(frameMax)}</div>
     </div>
+    <div class="qf-profiler__metric">
+      <div class="qf-profiler__label">Freezes</div>
+      <div class="qf-profiler__value">${formatNumber(freezeCount, 0)}</div>
+      <div class="qf-profiler__sub">>${formatMs(stats.freezeThresholdMs)} | ${formatNumber(freezePct, 1)}%</div>
+    </div>
   </div>
   <div class="qf-profiler__pressure">
     <div class="qf-profiler__pressure-bar qf-profiler__pressure-bar--${pressureStateClass}" style="--bar:${pressureBar.toFixed(
@@ -99,10 +120,16 @@ export class ProfilerOverlay {
   </div>
   ${sparkline}
   <div class="qf-profiler__sections">
+    ${topOpsTable}
+  </div>
+  <div class="qf-profiler__sections">
     ${sectionRows}
   </div>
   <div class="qf-profiler__sections">
     ${valueRows}
+  </div>
+  <div class="qf-profiler__actions">
+    <button type="button" data-action="reset-profiler" class="qf-profiler__button">Reset Stats</button>
   </div>
 </div>`;
   }

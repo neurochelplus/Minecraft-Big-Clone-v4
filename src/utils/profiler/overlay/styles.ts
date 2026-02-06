@@ -71,7 +71,7 @@ export function createProfilerStyles(): HTMLStyleElement {
 
 #qf-profiler .qf-profiler__grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -163,6 +163,14 @@ export function createProfilerStyles(): HTMLStyleElement {
   min-height: 0;
 }
 
+#qf-profiler .qf-profiler__group-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: rgba(231, 244, 242, 0.62);
+  margin-bottom: 4px;
+}
+
 #qf-profiler .qf-profiler__section {
   padding: 8px;
   border-radius: 10px;
@@ -215,6 +223,69 @@ export function createProfilerStyles(): HTMLStyleElement {
 
 #qf-profiler .qf-profiler__section-bar--bad span {
   background: linear-gradient(90deg, rgba(255, 139, 139, 0.95), rgba(255, 95, 95, 0.95));
+}
+
+#qf-profiler .qf-profiler__table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  background: rgba(10, 16, 18, 0.8);
+  border: 1px solid rgba(90, 150, 150, 0.18);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+#qf-profiler .qf-profiler__table-head {
+  text-align: right;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: rgba(231, 244, 242, 0.72);
+  padding: 7px 8px;
+  border-bottom: 1px solid rgba(90, 150, 150, 0.18);
+  background: rgba(16, 24, 28, 0.8);
+}
+
+#qf-profiler .qf-profiler__table-head--name {
+  text-align: left;
+}
+
+#qf-profiler .qf-profiler__table-cell {
+  text-align: right;
+  font-size: 11px;
+  color: rgba(231, 244, 242, 0.86);
+  padding: 7px 8px;
+  border-bottom: 1px solid rgba(90, 150, 150, 0.12);
+}
+
+#qf-profiler .qf-profiler__table-cell--name {
+  text-align: left;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  color: #c8fff4;
+}
+
+#qf-profiler .qf-profiler__table-row:last-child .qf-profiler__table-cell {
+  border-bottom: none;
+}
+
+#qf-profiler .qf-profiler__actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+#qf-profiler .qf-profiler__button {
+  background: rgba(16, 26, 28, 0.9);
+  color: #c8fff4;
+  border: 1px solid rgba(100, 160, 160, 0.3);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+#qf-profiler .qf-profiler__button:hover {
+  border-color: rgba(140, 220, 210, 0.5);
 }
 
 #qf-profiler .qf-profiler__empty {
