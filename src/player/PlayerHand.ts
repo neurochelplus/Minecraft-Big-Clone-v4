@@ -17,8 +17,11 @@ export class PlayerHand {
   private isSwinging = false;
   private isMining = false; // Held down state
   private isEating = false;
+  private throwTime = 0;
+  private isThrowing = false;
 
   private readonly SWING_DURATION = 0.3; // Seconds
+  private readonly THROW_DURATION = 0.18; // Seconds
   private readonly BASE_POS = new THREE.Vector3(0.5, -0.6, -1); // Right hand position
 
   // Texture References
@@ -483,6 +486,13 @@ export class PlayerHand {
       this.isEating = eating;
   }
 
+  public throw() {
+    this.isThrowing = true;
+    this.throwTime = 0;
+    this.isSwinging = false;
+    this.isMining = false;
+  }
+
   public update(delta: number, isMoving: boolean) {
     // Spin Needle
     if (this.needleMesh) {
@@ -521,6 +531,24 @@ export class PlayerHand {
           this.handGroup.rotation.z += (0 - this.handGroup.rotation.z) * 10 * delta;
           this.handGroup.position.z += (this.BASE_POS.z - this.handGroup.position.z) * 10 * delta;
       }
+    }
+
+    // Throw Animation (priority over regular swing)
+    if (this.isThrowing && !this.isEating) {
+      this.throwTime += delta;
+      const progress = Math.min(this.throwTime / this.THROW_DURATION, 1.0);
+      const throwCurve = Math.sin(progress * Math.PI);
+
+      this.handGroup.rotation.x = -throwCurve * 0.9;
+      this.handGroup.rotation.y = throwCurve * 0.15;
+      this.handGroup.rotation.z = throwCurve * 0.25;
+      this.handGroup.position.z = this.BASE_POS.z - throwCurve * 0.65;
+      this.handGroup.position.y = this.BASE_POS.y - throwCurve * 0.12;
+
+      if (progress >= 1.0) {
+        this.isThrowing = false;
+      }
+      return;
     }
 
     // Swing Animation

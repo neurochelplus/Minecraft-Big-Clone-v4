@@ -14,6 +14,7 @@ export class KeyboardHandler {
   private inventoryUI: InventoryUI;
   private cli: CLI;
   private onToggleInventory: (useCraftingTable: boolean) => void;
+  private onDropSelectedItem: () => void;
   private onShowPauseMenu: () => void;
   private onHotbarChange: () => void;
 
@@ -36,6 +37,7 @@ export class KeyboardHandler {
     inventoryUI: InventoryUI,
     cli: CLI,
     onToggleInventory: (useCraftingTable: boolean) => void,
+    onDropSelectedItem: () => void,
     onShowPauseMenu: () => void,
     onHotbarChange: () => void,
   ) {
@@ -45,6 +47,7 @@ export class KeyboardHandler {
     this.inventoryUI = inventoryUI;
     this.cli = cli;
     this.onToggleInventory = onToggleInventory;
+    this.onDropSelectedItem = onDropSelectedItem;
     this.onShowPauseMenu = onShowPauseMenu;
     this.onHotbarChange = onHotbarChange;
     this.init();
@@ -69,6 +72,18 @@ export class KeyboardHandler {
 
     const inventoryMenu = document.getElementById("inventory-menu")!;
     const isInventoryOpen = inventoryMenu.style.display === "flex";
+    const isGameplayActive =
+      this.gameState.getGameStarted() &&
+      !this.gameState.getPaused() &&
+      !isInventoryOpen;
+
+    // Keep browser shortcut intent (Ctrl/Cmd+W) from turning into sprint-forward input.
+    if (isGameplayActive && (event.ctrlKey || event.metaKey) && event.code === "KeyW") {
+      event.preventDefault();
+      this.player.physics.moveForward = false;
+      this.player.physics.isSprinting = false;
+      return;
+    }
 
     // Prevent movement keys when inventory is open
     if (isInventoryOpen) {
@@ -126,6 +141,11 @@ export class KeyboardHandler {
         break;
       case "ControlLeft":
       case "ControlRight":
+        if (isGameplayActive && this.player.physics.moveForward) {
+          event.preventDefault();
+          this.player.physics.isSprinting = false;
+          return;
+        }
         this.player.physics.isSprinting = !this.player.physics.isSprinting;
         break;
       case "Space":
@@ -133,6 +153,16 @@ export class KeyboardHandler {
         break;
       case "KeyE":
         if (!this.gameState.getPaused()) this.onToggleInventory(false);
+        break;
+      case "KeyQ":
+        if (!this.gameState.getPaused() && this.gameState.getGameStarted()) {
+          event.preventDefault();
+          if (isInventoryOpen) {
+            this.inventoryUI.dropFromOpenInventoryShortcut();
+          } else {
+            this.onDropSelectedItem();
+          }
+        }
         break;
       case "Escape":
         const invMenu = document.getElementById("inventory-menu")!;

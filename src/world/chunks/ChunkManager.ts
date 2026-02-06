@@ -3,7 +3,6 @@ import { ChunkLoader } from "./ChunkLoader";
 import { ChunkVisibility } from "./ChunkVisibility";
 import { logger } from "../../utils/Logger";
 
-// Глобальный доступ к профайлеру (если есть)
 declare global {
   interface Window {
     __profiler?: {
@@ -13,28 +12,28 @@ declare global {
   }
 }
 
-/**
- * Фасад для управления чанками
- * Координирует загрузку, выгрузку и видимость чанков
- */
 export class ChunkManager {
   private chunkSize: number = 32;
   private chunkHeight: number = 128;
 
   private loader: ChunkLoader;
   private visibility: ChunkVisibility;
-  
-  // Throttling: обновлять чанки не каждый кадр
+
   private updateCounter: number = 0;
-  private readonly UPDATE_INTERVAL: number = 3; // Каждые 3 кадра
-  
-  // Кэш позиции игрока для определения движения
+  private readonly UPDATE_INTERVAL: number = 3;
+
   private lastPlayerChunkX: number = -Infinity;
   private lastPlayerChunkZ: number = -Infinity;
 
   constructor(scene: THREE.Scene, seed?: number) {
     this.loader = new ChunkLoader(scene, this.chunkSize, this.chunkHeight, seed);
     this.visibility = new ChunkVisibility(this.chunkSize, this.chunkHeight);
+  }
+
+  private resetRuntimeState(): void {
+    this.updateCounter = 0;
+    this.lastPlayerChunkX = -Infinity;
+    this.lastPlayerChunkZ = -Infinity;
   }
 
   public async init(): Promise<void> {
@@ -49,32 +48,51 @@ export class ChunkManager {
     this.loader.setSeed(seed);
   }
 
+  public getWorldId(): string {
+    return this.loader.getWorldId();
+  }
+
+  public async switchWorld(worldId: string, seed: number): Promise<void> {
+    await this.loader.switchWorld(worldId, seed);
+    this.visibility.clearAll();
+    this.resetRuntimeState();
+  }
+
+  public async clearCurrentWorld(): Promise<void> {
+    await this.loader.clearCurrentWorld();
+    this.visibility.clearAll();
+    this.resetRuntimeState();
+  }
+
+  public clearInMemory(): void {
+    this.loader.clearInMemory();
+    this.visibility.clearAll();
+    this.resetRuntimeState();
+  }
+
   public getNoiseTexture(): THREE.DataTexture {
     return this.loader.getNoiseTexture();
   }
 
-  /**
-   * Обновить чанки вокруг игрока
-   */
   public update(playerPos: THREE.Vector3): void {
     const profiler = window.__profiler;
-    
+
     const cx = Math.floor(playerPos.x / this.chunkSize);
     const cz = Math.floor(playerPos.z / this.chunkSize);
-    
-    // Throttling: полное обновление только каждые N кадров
-    // или если игрок перешёл в новый чанк
-    const playerMovedChunk = cx !== this.lastPlayerChunkX || cz !== this.lastPlayerChunkZ;
+
+    const playerMovedChunk =
+      cx !== this.lastPlayerChunkX || cz !== this.lastPlayerChunkZ;
     this.updateCounter++;
-    
-    const shouldFullUpdate = playerMovedChunk || this.updateCounter >= this.UPDATE_INTERVAL;
-    
+
+    const shouldFullUpdate =
+      playerMovedChunk || this.updateCounter >= this.UPDATE_INTERVAL;
+
     if (shouldFullUpdate) {
       this.updateCounter = 0;
       this.lastPlayerChunkX = cx;
       this.lastPlayerChunkZ = cz;
     }
-    
+
     const isMobile =
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
         navigator.userAgent,
@@ -84,61 +102,48 @@ export class ChunkManager {
 
     const activeChunks = new Set<string>();
 
-    // Загрузить чанки в радиусе (с приоритетом по расстоянию)
-    profiler?.startMeasure('chunk-queue');
+    profiler?.startMeasure("chunk-queue");
     for (let x = cx - radius; x <= cx + radius; x++) {
       for (let z = cz - radius; z <= cz + radius; z++) {
         const key = `${x},${z}`;
         activeChunks.add(key);
 
         if (!this.loader.getChunks().has(key)) {
-          // Приоритет = расстояние от игрока (ближние первыми)
           const priority = Math.abs(x - cx) + Math.abs(z - cz);
-          this.loader.ensureChunk(x, z, priority);
+          void this.loader.ensureChunk(x, z, priority);
         }
       }
     }
-    profiler?.endMeasure('chunk-queue');
+    profiler?.endMeasure("chunk-queue");
 
-    // Обработать очередь генерации (1 чанк за кадр)
-    profiler?.startMeasure('chunk-generation');
+    profiler?.startMeasure("chunk-generation");
     this.loader.processGenerationQueue();
-    profiler?.endMeasure('chunk-generation');
+    profiler?.endMeasure("chunk-generation");
 
-    // Выгрузка и сортировка только при полном обновлении
     if (shouldFullUpdate) {
-      // Выгрузить дальние чанки
-      profiler?.startMeasure('chunk-unload');
+      profiler?.startMeasure("chunk-unload");
       for (const [key] of this.loader.getChunks()) {
         if (!activeChunks.has(key)) {
           this.loader.unloadChunk(key);
           this.visibility.clearBounds(key);
         }
       }
-      profiler?.endMeasure('chunk-unload');
+      profiler?.endMeasure("chunk-unload");
 
-      // Обновить сортировку чанков для early-z optimization
-      profiler?.startMeasure('chunk-sorting');
+      profiler?.startMeasure("chunk-sorting");
       this.loader.updateChunkSorting(playerPos);
-      profiler?.endMeasure('chunk-sorting');
+      profiler?.endMeasure("chunk-sorting");
     }
 
-    // Memory cleanup (реже)
     if (Math.random() < (isMobile ? 0.02 : 0.005)) {
       this.checkMemory(playerPos);
     }
   }
 
-  /**
-   * Обновить видимость чанков (frustum culling)
-   */
   public updateVisibility(camera: THREE.Camera): void {
     this.visibility.update(camera, this.loader.getChunks());
   }
 
-  /**
-   * Очистка памяти от дальних чанков
-   */
   private checkMemory(playerPos: THREE.Vector3): void {
     const chunksData = this.loader.getChunksData();
     if (chunksData.size <= 500) return;
@@ -161,7 +166,6 @@ export class ChunkManager {
       const [key] = entries[i];
 
       if (dirtyChunks.has(key)) {
-        // Сохранение будет выполнено через saveDirtyChunks()
         continue;
       }
 
@@ -171,7 +175,6 @@ export class ChunkManager {
     logger.debug("Memory cleanup performed.");
   }
 
-  // Делегирование методов к ChunkLoader
   public getBlock(x: number, y: number, z: number): number {
     return this.loader.getBlock(x, y, z);
   }
@@ -204,9 +207,6 @@ export class ChunkManager {
     await this.loader.saveDirtyChunks();
   }
 
-  /**
-   * Получить количество загруженных чанков
-   */
   public getChunkCount(): { visible: number; total: number } {
     const chunks = this.loader.getChunks();
     let visible = 0;
@@ -218,8 +218,8 @@ export class ChunkManager {
     return { visible, total: chunks.size };
   }
 
+  // Backward-compatible alias
   public async clear(): Promise<void> {
-    await this.loader.clear();
-    this.visibility.clearAll();
+    await this.clearCurrentWorld();
   }
 }

@@ -88,6 +88,38 @@ export class DB {
     });
   }
 
+  async keysByPrefix(store: string, prefix: string): Promise<string[]> {
+    const allKeys = await this.keys(store);
+    const stringKeys: string[] = [];
+
+    for (const key of allKeys) {
+      if (typeof key === "string" && key.startsWith(prefix)) {
+        stringKeys.push(key);
+      }
+    }
+
+    return stringKeys;
+  }
+
+  async deleteMany(store: string, keys: string[]): Promise<void> {
+    if (keys.length === 0) {
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
+      if (!this.db) return reject("DB not initialized");
+      const transaction = this.db.transaction([store], "readwrite");
+      const objectStore = transaction.objectStore(store);
+
+      transaction.onerror = () => reject(transaction.error);
+      transaction.oncomplete = () => resolve();
+
+      for (const key of keys) {
+        objectStore.delete(key);
+      }
+    });
+  }
+
   async clear(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.db) return reject("DB not initialized");
@@ -107,8 +139,8 @@ export class DB {
   async hasSavedData(): Promise<boolean> {
     try {
       if (!this.db) await this.init();
-      const meta = await this.get("player", "meta");
-      return !!meta;
+      const worlds = await this.get<unknown[]>("worlds:index", "meta");
+      return Array.isArray(worlds) && worlds.length > 0;
     } catch (_e) {
       return false;
     }

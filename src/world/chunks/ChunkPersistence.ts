@@ -2,14 +2,44 @@ import { worldDB } from "../../utils/DB";
 import { logger } from "../../utils/Logger";
 
 export class ChunkPersistence {
+  private worldId: string = "default";
   private knownChunkKeys: Set<string> = new Set();
   private loadingChunks: Set<string> = new Set();
 
+  public setWorldId(worldId: string): void {
+    if (this.worldId === worldId) {
+      return;
+    }
+    this.worldId = worldId;
+    this.knownChunkKeys.clear();
+    this.loadingChunks.clear();
+  }
+
+  private getChunkPrefix(worldId: string = this.worldId): string {
+    return `w:${worldId}:c:`;
+  }
+
+  private toStorageKey(key: string): string {
+    return `${this.getChunkPrefix()}${key}`;
+  }
+
+  private fromStorageKey(storageKey: string): string {
+    return storageKey.slice(this.getChunkPrefix().length);
+  }
+
   public async init(): Promise<void> {
     await worldDB.init();
-    const keys = await worldDB.keys("chunks");
-    keys.forEach((k) => this.knownChunkKeys.add(k as string));
-    logger.debug(`Loaded world index. ${this.knownChunkKeys.size} chunks in DB.`);
+    this.knownChunkKeys.clear();
+    this.loadingChunks.clear();
+
+    const keys = await worldDB.keysByPrefix("chunks", this.getChunkPrefix());
+    keys.forEach((storageKey) =>
+      this.knownChunkKeys.add(this.fromStorageKey(storageKey)),
+    );
+
+    logger.debug(
+      `Loaded world index for ${this.worldId}. ${this.knownChunkKeys.size} chunks in DB.`,
+    );
   }
 
   public async loadChunk(key: string): Promise<Uint8Array | null> {
@@ -22,7 +52,9 @@ export class ChunkPersistence {
       return new Promise((resolve) => {
         const check = () => {
           if (!this.loadingChunks.has(key)) {
-            worldDB.get(key, "chunks").then(resolve);
+            worldDB.get(this.toStorageKey(key), "chunks").then((data) => {
+              resolve((data as Uint8Array | undefined) ?? null);
+            });
           } else {
             setTimeout(check, 50);
           }
@@ -33,7 +65,7 @@ export class ChunkPersistence {
 
     this.loadingChunks.add(key);
     try {
-      const data = await worldDB.get(key, "chunks");
+      const data = await worldDB.get(this.toStorageKey(key), "chunks");
       return data as Uint8Array | null;
     } finally {
       this.loadingChunks.delete(key);
@@ -41,7 +73,7 @@ export class ChunkPersistence {
   }
 
   public async saveChunk(key: string, data: Uint8Array): Promise<void> {
-    await worldDB.set(key, data, "chunks");
+    await worldDB.set(this.toStorageKey(key), data, "chunks");
     this.knownChunkKeys.add(key);
   }
 
@@ -53,8 +85,11 @@ export class ChunkPersistence {
     await Promise.all(promises);
   }
 
-  public async clear(): Promise<void> {
-    await worldDB.clear();
+  public async clearWorld(worldId: string = this.worldId): Promise<void> {
+    await worldDB.init();
+    const storageKeys = await worldDB.keysByPrefix("chunks", this.getChunkPrefix(worldId));
+    await worldDB.deleteMany("chunks", storageKeys);
+
     this.knownChunkKeys.clear();
     this.loadingChunks.clear();
   }

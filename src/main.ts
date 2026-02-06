@@ -9,6 +9,7 @@ import { MouseHandler } from "./input/MouseHandler";
 import { PointerLockHandler } from "./input/PointerLockHandler";
 import { Game } from "./core/Game";
 import { FurnaceManager } from "./crafting/FurnaceManager";
+import { SaveCoordinator } from "./ui/SaveCoordinator";
 import { FeatureToggles } from "./utils/FeatureToggles";
 import "./style.css";
 import "./styles/mod-manager.css";
@@ -49,6 +50,15 @@ async function initializeGame() {
 
   // Set game reference for callbacks
   systems.setGame(game);
+  systems.inventoryUI.setWorldDropHandler((id, count) => game.dropItem(id, count));
+  const saveCoordinator = new SaveCoordinator(async () => {
+    await systems.world.saveWorld({
+      position: systems.controls.object.position,
+      inventory: systems.inventory.serialize(),
+    });
+    await FurnaceManager.getInstance().save();
+  });
+  game.saveCoordinator = saveCoordinator;
 
   // Inventory Controller
   const inventoryController = new InventoryController(
@@ -62,6 +72,7 @@ async function initializeGame() {
     systems.craftingUI,
     systems.furnaceUI,
     FurnaceManager.getInstance(),
+    saveCoordinator,
     systems.isMobile,
   );
 
@@ -79,6 +90,7 @@ async function initializeGame() {
     systems.inventoryUI,
     game.cli,
     (useCraftingTable) => inventoryController.toggle(useCraftingTable),
+    () => game.dropSelectedItem(),
     () => game.menus.showPauseMenu(),
     () => {
       if (systems.inventoryUI.onInventoryChange) {
@@ -139,9 +151,7 @@ async function initializeGame() {
   // Auto-save
   const autoSave = new AutoSave(
     systems.gameState,
-    systems.world,
-    systems.controls,
-    systems.inventory,
+    saveCoordinator,
   );
   autoSave.start();
 
@@ -151,29 +161,24 @@ async function initializeGame() {
   // Mobile Events
   window.addEventListener("toggle-inventory", () => inventoryController.toggle(false));
   window.addEventListener("toggle-pause-menu", () => game.menus.togglePauseMenu());
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && systems.gameState.getGameStarted()) {
+      void saveCoordinator.requestSave("visibility-hidden");
+    }
+  });
+  window.addEventListener("pagehide", () => {
+    if (systems.gameState.getGameStarted()) {
+      void saveCoordinator.requestSave("pagehide");
+    }
+  });
+  window.addEventListener("beforeunload", () => {
+    if (systems.gameState.getGameStarted()) {
+      void saveCoordinator.requestSave("beforeunload");
+    }
+  });
 
   // Loading Screen
   const loadingScreen = new LoadingScreen();
-
-  // Load World Data
-  systems.world.loadWorld().then(async (data) => {
-    if (data.playerPosition) {
-      data.playerPosition.y += 0.5; // Prevent falling through floor
-      systems.controls.object.position.copy(data.playerPosition);
-    }
-    if (data.inventory) {
-      systems.inventory.deserialize(data.inventory);
-      systems.inventoryUI.refresh();
-    }
-
-    // Load Furnaces
-    await FurnaceManager.getInstance().load();
-
-    // Ensure starting chunk is loaded
-    const cx = Math.floor(systems.controls.object.position.x / 32);
-    const cz = Math.floor(systems.controls.object.position.z / 32);
-    await systems.world.waitForChunk(cx, cz);
-  });
 
   // Start Loading Screen
   loadingScreen.start(() => game.start());

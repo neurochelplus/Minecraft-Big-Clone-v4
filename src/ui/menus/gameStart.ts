@@ -35,7 +35,8 @@ export async function startGameFlow(options: StartGameOptions): Promise<void> {
   worldLoading.setProgress(0.02);
 
   if (!loadSave) {
-    await game.world.deleteWorld();
+    const world = await game.world.createWorld({ name: "" });
+    await game.world.setActiveWorld(world.id);
   }
 
   const data = await game.world.loadWorld();
