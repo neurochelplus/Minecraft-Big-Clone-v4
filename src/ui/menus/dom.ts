@@ -35,7 +35,6 @@ export function getMenusButtons(): MenusButtons {
     btnDeleteWorld: getRequiredElement("btn-delete-world"),
     btnBackSingleplayer: getRequiredElement("btn-back-singleplayer"),
     btnMultiplayer: getRequiredElement("btn-multiplayer"),
-    btnMods: getRequiredElement("btn-mods"),
     btnResume: getRequiredElement("btn-resume"),
     btnExit: getRequiredElement("btn-exit"),
     btnSettingsMain: getRequiredElement("btn-settings-main"),

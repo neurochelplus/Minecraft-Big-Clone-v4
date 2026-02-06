@@ -23,13 +23,11 @@ import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { TOOL_DURABILITY, PICKUP_DISTANCE, ENTITY_VISIBILITY_DISTANCE } from "../constants/GameConstants";
 import { createDevTools, DevTools } from "../utils/DevTools";
 import { createProfiler, PerformanceProfiler } from "../utils/PerformanceProfiler";
-import { modLoader } from "../modding";
 import { AutoSave } from "../ui/AutoSave";
 import { SaveCoordinator } from "../ui/SaveCoordinator";
 import { KeyboardHandler } from "../input/KeyboardHandler";
 import { MouseHandler } from "../input/MouseHandler";
 import { PointerLockHandler } from "../input/PointerLockHandler";
-import { logger } from "../utils/Logger";
 
 
 
@@ -124,23 +122,6 @@ export class Game {
     this.devTools = createDevTools();
     this.profiler = createProfiler();
 
-    // Initialize Modding System
-    this.initMods();
-  }
-
-  /**
-   * Инициализация системы модов
-   */
-  private async initMods(): Promise<void> {
-    try {
-      // Передать ссылку на игру в ModLoader
-      modLoader.setGame(this);
-      
-      // Загрузить все моды
-      await modLoader.loadAllMods();
-    } catch (error) {
-      logger.error('[Game] Failed to initialize mods:', error);
-    }
   }
 
   /**

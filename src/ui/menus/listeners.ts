@@ -1,4 +1,3 @@
-import { FeatureToggles } from "../../utils/FeatureToggles";
 import { bindSettingsListeners } from "./settings";
 import type { MenusContext } from "./types";
 
@@ -11,7 +10,6 @@ export type MenusListenerCallbacks = {
   closeCreateDialog(): void;
   handleDeleteWorldClick(): Promise<void>;
   selectRelativeWorld(direction: 1 | -1): void;
-  showModManager(): void;
   hidePauseMenu(): void;
   showSettingsMenu(fromMenu: HTMLElement): void;
   hideSettingsMenu(): void;
@@ -77,13 +75,6 @@ export function bindMenusListeners(
       }
     }
   });
-
-  const toggles = FeatureToggles.getInstance();
-  if (!toggles.isEnabled("show_mods")) {
-    buttons.btnMods.style.display = "none";
-  } else {
-    buttons.btnMods.addEventListener("click", () => callbacks.showModManager());
-  }
 
   buttons.btnResume.addEventListener("click", () => {
     if (game.renderer.getIsMobile()) {

@@ -25,7 +25,6 @@ export type MenusButtons = {
   btnDeleteWorld: HTMLButtonElement;
   btnBackSingleplayer: HTMLButtonElement;
   btnMultiplayer: HTMLButtonElement;
-  btnMods: HTMLButtonElement;
   btnResume: HTMLButtonElement;
   btnExit: HTMLButtonElement;
   btnSettingsMain: HTMLButtonElement;

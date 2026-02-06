@@ -9,7 +9,6 @@ import {
   PLAYER_HEIGHT,
   PLAYER_EYE_HEIGHT,
 } from "../constants/GameConstants";
-import { globalEventBus } from "../modding";
 
 export class BlockInteraction {
   private raycaster: THREE.Raycaster;
@@ -280,14 +279,7 @@ export class BlockInteraction {
           }
 
           if (this.onPlaceBlock) {
-            const placed = this.onPlaceBlock(px, py, pz, slot.id);
-            if (placed) {
-              // Emit event for mods
-              globalEventBus.emit('world:blockPlace', {
-                x: px, y: py, z: pz,
-                blockId: slot.id,
-              });
-            }
+            this.onPlaceBlock(px, py, pz, slot.id);
           }
         }
       }

@@ -11,7 +11,6 @@ import { BLOCK } from "../constants/Blocks";
 import type { IEnvironment } from "../contracts/environment";
 import type { IPlayerInput } from "../contracts/player";
 import { TOOL_TEXTURES } from "../constants/ToolTextures";
-import { globalEventBus } from "../modding";
 
 export class MobManager {
   public mobs: Mob[] = [];
@@ -54,14 +53,6 @@ export class MobManager {
       const mob = this.mobs[i];
 
       if (mob.isDead) {
-        // Emit event for mods
-        globalEventBus.emit('mob:death', {
-          mobType: mob.constructor.name,
-          x: mob.mesh.position.x,
-          y: mob.mesh.position.y,
-          z: mob.mesh.position.z,
-        });
-
         // Drop Item (Only for non-ChunkError mobs, or general zombies)
         if (mob instanceof WildBoar) {
             // Drop Meat

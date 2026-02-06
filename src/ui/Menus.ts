@@ -1,5 +1,4 @@
 import { Game } from "../core/Game";
-import { modManagerUI } from "../modding";
 import {
   bindMenusListeners,
   createMenuMusic,
@@ -70,7 +69,6 @@ export class Menus {
       closeCreateDialog: () => this.closeCreateDialog(),
       handleDeleteWorldClick: () => this.handleDeleteWorldClick(),
       selectRelativeWorld: (direction) => this.selectRelativeWorld(direction),
-      showModManager: () => this.showModManager(),
       hidePauseMenu: () => this.hidePauseMenu(),
       showSettingsMenu: (fromMenu) => this.showSettingsMenu(fromMenu),
       hideSettingsMenu: () => this.hideSettingsMenu(),
@@ -272,10 +270,6 @@ export class Menus {
 
   private hideSettingsMenu(): void {
     hideSettingsMenuView(this.context);
-  }
-
-  private showModManager(): void {
-    modManagerUI.show();
   }
 }
 

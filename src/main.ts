@@ -12,8 +12,6 @@ import { FurnaceManager } from "./crafting/FurnaceManager";
 import { SaveCoordinator } from "./ui/SaveCoordinator";
 import { FeatureToggles } from "./utils/FeatureToggles";
 import "./style.css";
-import "./styles/mod-manager.css";
-import "./styles/mods.css";
 
 async function initializeGame() {
   // Load feature toggles first

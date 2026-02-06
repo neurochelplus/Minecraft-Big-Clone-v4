@@ -3,7 +3,6 @@ import { PerspectiveCamera } from "three";
 import { Scene } from "three";
 import { World } from "../world/World";
 import { BLOCK } from "../constants/Blocks";
-import { globalEventBus } from "../modding";
 
 export class BlockBreaking {
   private crackMesh: THREE.Mesh;
@@ -209,12 +208,6 @@ export class BlockBreaking {
       const x = this.currentBreakBlock.x;
       const y = this.currentBreakBlock.y;
       const z = this.currentBreakBlock.z;
-
-      // Emit event for mods
-      globalEventBus.emit('world:blockBreak', {
-        x, y, z,
-        blockId: this.currentBreakId,
-      });
 
       if (this.onBlockBreak) {
         this.onBlockBreak(x, y, z, this.currentBreakId);
