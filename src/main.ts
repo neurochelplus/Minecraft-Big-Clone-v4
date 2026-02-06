@@ -61,6 +61,7 @@ async function initializeGame() {
     systems.craftingSystem,
     systems.craftingUI,
     systems.furnaceUI,
+    FurnaceManager.getInstance(),
     systems.isMobile,
   );
 
