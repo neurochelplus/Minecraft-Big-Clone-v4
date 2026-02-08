@@ -1,11 +1,11 @@
-import { FurnaceManager } from "./FurnaceManager";
-import { DragDrop } from "../inventory/DragDrop";
+import type { IFurnaceManager } from "../contracts/crafting";
+import type { IDragDrop } from "../contracts/ui";
 import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { getBlockColor } from "../utils/BlockColors";
 
 export class FurnaceUI {
-  private furnaceManager: FurnaceManager;
-  private dragDrop: DragDrop;
+  private furnaceManager: IFurnaceManager;
+  private dragDrop: IDragDrop;
 
   private container: HTMLElement;
   private inputSlot: HTMLElement;
@@ -18,8 +18,8 @@ export class FurnaceUI {
   private isOpen: boolean = false;
 
   constructor(
-    furnaceManager: FurnaceManager,
-    dragDrop: DragDrop,
+    furnaceManager: IFurnaceManager,
+    dragDrop: IDragDrop,
   ) {
     this.furnaceManager = furnaceManager;
     this.dragDrop = dragDrop;

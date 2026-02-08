@@ -44,8 +44,11 @@ export class GameInitializer {
     const environment = new Environment(scene);
     initDebugControls(environment);
 
+    // Furnace Manager
+    const furnaceManager = FurnaceManager.getInstance();
+
     // World
-    const world = new World(scene);
+    const world = new World(scene, furnaceManager);
 
     // UI Elements
     const damageOverlay = document.getElementById("damage-overlay")!;
@@ -57,7 +60,7 @@ export class GameInitializer {
     // Inventory System
     const inventory = new Inventory();
     const dragDrop = new DragDrop();
-    const inventoryUI = new InventoryUI(inventory, dragDrop, isMobile);
+    const inventoryUI = new InventoryUI(inventory, dragDrop);
 
     // Block Cursor
     const blockCursor = new BlockCursor(scene, camera, controls);
@@ -78,7 +81,7 @@ export class GameInitializer {
 
         // Handle furnace drops
         if (id === BLOCK.FURNACE) {
-          const drops = FurnaceManager.getInstance().removeFurnace(x, y, z);
+          const drops = furnaceManager.removeFurnace(x, y, z);
           drops.forEach((d) => {
             let toolTexture = null;
             if (
@@ -161,7 +164,6 @@ export class GameInitializer {
       damageOverlay,
       healthBar,
       world.noiseTexture,
-      TOOL_TEXTURES,
     );
 
     // Mob Manager
@@ -185,7 +187,6 @@ export class GameInitializer {
       isMobile,
     );
 
-    const furnaceManager = FurnaceManager.getInstance();
     const furnaceUI = new FurnaceUI(furnaceManager, dragDrop);
 
     // Block Interaction
@@ -289,9 +290,11 @@ export class GameInitializer {
       blockInteraction,
       inventory,
       inventoryUI,
+      dragDrop,
       craftingSystem,
       craftingUI,
       furnaceUI,
+      furnaceManager,
       controls,
       isMobile,
       setGame: (g: Game) => {

@@ -1,14 +1,15 @@
-import { CraftingSystem } from "./CraftingSystem";
-import { DragDrop } from "../inventory/DragDrop";
+import type { ICrafting } from "../contracts/crafting";
+import type { IDragDrop } from "../contracts/ui";
+import type { InventorySlot } from "../contracts/inventory";
 
 export class CraftingSlotHandler {
-  private craftingSystem: CraftingSystem;
-  private dragDrop: DragDrop;
+  private craftingSystem: ICrafting;
+  private dragDrop: IDragDrop;
   private onUpdate: () => void;
 
   constructor(
-    craftingSystem: CraftingSystem,
-    dragDrop: DragDrop,
+    craftingSystem: ICrafting,
+    dragDrop: IDragDrop,
     onUpdate: () => void,
   ) {
     this.craftingSystem = craftingSystem;
@@ -74,39 +75,41 @@ export class CraftingSlotHandler {
 
   private handlePlace(
     slot: { id: number; count: number },
-    draggedItem: { id: number; count: number },
+    draggedItem: InventorySlot,
     button: number,
-  ): { id: number; count: number } | null {
+  ): InventorySlot | null {
+    let nextItem: InventorySlot | null = draggedItem;
+
     if (slot.id === 0) {
       if (button === 2) {
-        slot.id = draggedItem.id;
+        slot.id = nextItem.id;
         slot.count = 1;
-        draggedItem.count--;
-        if (draggedItem.count === 0) draggedItem = null;
+        nextItem.count--;
+        if (nextItem.count === 0) nextItem = null;
       } else {
-        slot.id = draggedItem.id;
-        slot.count = draggedItem.count;
-        draggedItem = null;
+        slot.id = nextItem.id;
+        slot.count = nextItem.count;
+        nextItem = null;
       }
       this.craftingSystem.checkRecipes();
-    } else if (slot.id === draggedItem.id) {
+    } else if (slot.id === nextItem.id) {
       if (button === 2) {
         slot.count++;
-        draggedItem.count--;
-        if (draggedItem.count === 0) draggedItem = null;
+        nextItem.count--;
+        if (nextItem.count === 0) nextItem = null;
       } else {
-        slot.count += draggedItem.count;
-        draggedItem = null;
+        slot.count += nextItem.count;
+        nextItem = null;
       }
       this.craftingSystem.checkRecipes();
     } else {
       const temp = { ...slot };
-      slot.id = draggedItem.id;
-      slot.count = draggedItem.count;
-      draggedItem = temp;
+      slot.id = nextItem.id;
+      slot.count = nextItem.count;
+      nextItem = temp;
       this.craftingSystem.checkRecipes();
     }
 
-    return draggedItem;
+    return nextItem;
   }
 }

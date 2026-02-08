@@ -1,32 +1,81 @@
 /* Loading Screen */
-#loading-screen {
+.loading-screen {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: black;
     z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    display: none;
     align-items: center;
-    color: white;
+    justify-content: center;
+    color: #e6f0f3;
+    background:
+        radial-gradient(1200px 800px at 20% 10%, #1c2c3a 0%, rgba(14, 18, 24, 0.9) 55%, #0b0f14 100%),
+        linear-gradient(180deg, #0c1117 0%, #06080b 100%);
 }
 
-#loading-bar-container {
-    width: 50%;
-    max-width: 400px;
-    height: 30px;
-    background-color: #1c252a;
-    border: 4px solid #263238;
+.loading-screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: var(--noise-url);
+    opacity: 0.08;
+    pointer-events: none;
+}
+
+.loading-shell {
     position: relative;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    width: min(520px, 90vw);
+    padding: 28px 26px;
+    background: rgba(12, 18, 24, 0.78);
+    border: 1px solid rgba(89, 120, 140, 0.4);
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.5),
+        inset 0 0 24px rgba(30, 60, 80, 0.2);
+    backdrop-filter: blur(6px);
 }
 
-#loading-bar-inner {
+.loading-logo {
+    font-size: 26px;
+    letter-spacing: 1px;
+    color: #d6f0ff;
+    margin-bottom: 8px;
+}
+
+.loading-subtitle {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #8fb2c5;
+    margin-bottom: 18px;
+}
+
+.loading-bar-container {
+    width: 100%;
+    height: 12px;
+    background: #0a131a;
+    border: 1px solid rgba(110, 150, 170, 0.45);
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+
+.loading-bar-inner {
     width: 0%;
     height: 100%;
-    background-color: #455a64;
+    background: linear-gradient(90deg, #2c8c97 0%, #6fd6f0 60%, #9bf3ff 100%);
+    box-shadow: 0 0 12px rgba(111, 214, 240, 0.6);
     transition: width 0.1s linear;
+}
+
+.loading-progress-text {
+    margin-top: 10px;
+    font-size: 10px;
+    color: #bcd7e6;
+}
+
+.loading-tip {
+    margin-top: 8px;
+    font-size: 9px;
+    color: rgba(155, 190, 205, 0.8);
 }

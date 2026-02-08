@@ -1,12 +1,10 @@
-import * as THREE from "three";
+﻿import * as THREE from "three";
 import { Mob } from "./Mob";
-import { World } from "../world/World";
-import { Player } from "../player/Player";
+import type { IWorld } from "../contracts/world";
+import type { IPlayerInput } from "../contracts/player";
 
 export class ChunkErrorMob extends Mob {
   protected readonly walkSpeed: number = 0; // Moves by teleportation
-  private moveTimer = 0;
-  private moveInterval = 1.0; // Seconds between jumps
 
   // Body Parts
   private head: THREE.Mesh;
@@ -15,15 +13,8 @@ export class ChunkErrorMob extends Mob {
   private rightEye: THREE.Mesh;
   private mouth: THREE.Mesh;
 
-  // Glitch Effect
-  private glitchTimer = 0;
-
-  // AI State
-  private preferredSide = 1; // 1 (Right) or -1 (Left)
-  private sideTimer = 0;
-
   constructor(
-    world: World,
+    world: IWorld,
     scene: THREE.Scene,
     x: number,
     y: number,
@@ -199,7 +190,7 @@ export class ChunkErrorMob extends Mob {
   public takeDamage(amount: number, attackerPos: THREE.Vector3 | null) {
     super.takeDamage(amount, attackerPos);
     
-    // Only apply effect if there is a specific attacker (Player)
+    // Only apply effect if there is a specific attacker (IPlayerInput)
     if (attackerPos) {
       this.wasHitRecently = true;
 
@@ -225,19 +216,20 @@ export class ChunkErrorMob extends Mob {
   // Override update to get player access
   public update(
     delta: number,
-    player?: Player | THREE.Vector3, // Modified signature to accept Player
+    player?: IPlayerInput | THREE.Vector3, // Modified signature to accept IPlayerInput
     onAttack?: (damage: number) => void,
     isDay?: boolean,
   ) {
-    // Check if player parameter is actually a Player instance
-    let playerInstance: Player | undefined;
+    // Check if player parameter is actually a IPlayerInput instance
+    let playerInstance: IPlayerInput | undefined;
     let playerPos: THREE.Vector3 | undefined;
 
-    if (player && (player as any).physics) {
-        playerInstance = player as Player;
-        playerPos = playerInstance.physics.controls.object.position;
-    } else if (player instanceof THREE.Vector3) {
+    if (player instanceof THREE.Vector3) {
         playerPos = player;
+    } else if (player) {
+        playerInstance = player;
+        playerPos = playerInstance.physics.controls.object
+          .position as THREE.Vector3;
     }
 
     if (this.wasHitRecently && playerInstance) {
@@ -257,124 +249,6 @@ export class ChunkErrorMob extends Mob {
         const playerRotY = playerInstance.physics.controls.object.rotation.y;
         this.head.rotation.y = playerRotY;
         // Body stays fixed (or random), we don't rotate this.mesh.rotation.y here
-    }
-
-    // --- Glitch Effect on Eyes/Mouth ---
-    this.glitchTimer += delta;
-    if (this.glitchTimer > 1.0) {
-        // Apply jitter
-        const jitter = 0.05;
-        this.leftEye.position.set(
-            -0.2 + (Math.random() - 0.5) * jitter, 
-            0.1 + (Math.random() - 0.5) * jitter, 
-            0.41
-        );
-        this.rightEye.position.set(
-            0.2 + (Math.random() - 0.5) * jitter, 
-            0.1 + (Math.random() - 0.5) * jitter, 
-            0.41
-        );
-        this.mouth.position.set(
-            0 + (Math.random() - 0.5) * jitter, 
-            -0.2 + (Math.random() - 0.5) * jitter, 
-            0.41
-        );
-
-        // Scale distortion
-        this.leftEye.scale.setScalar(0.8 + Math.random() * 0.4);
-        this.rightEye.scale.setScalar(0.8 + Math.random() * 0.4);
-        this.mouth.scale.set(1.0 + (Math.random()-0.5)*0.5, 1.0 + (Math.random()-0.5)*0.5, 1);
-
-        if (this.glitchTimer > 1.1) {
-            // Reset
-            this.leftEye.position.set(-0.2, 0.1, 0.41);
-            this.rightEye.position.set(0.2, 0.1, 0.41);
-            this.mouth.position.set(0, -0.2, 0.41);
-            
-            this.leftEye.scale.set(1,1,1);
-            this.rightEye.scale.set(1,1,1);
-            this.mouth.scale.set(1,1,1);
-
-            this.glitchTimer = 0;
-        }
-    }
-  }
-
-  protected updateAI(
-    delta: number,
-    playerPos?: THREE.Vector3,
-    _onAttack?: (damage: number) => void,
-    _isDay?: boolean,
-  ) {
-    if (!playerPos) return;
-
-    // Update Side Timer
-    this.sideTimer += delta;
-    if (this.sideTimer > 8.0) {
-        this.preferredSide *= -1; // Switch side
-        this.sideTimer = 0;
-    }
-
-    // Movement: "Short jerks"
-    this.moveTimer += delta;
-    if (this.moveTimer >= this.moveInterval) {
-        this.moveTimer = 0;
-        this.moveInterval = 0.5 + Math.random() * 1.5;
-
-        // Calculate Target Position: Periphery of Player
-        // We need player's rotation. We don't have it passed directly as a value, 
-        // but we can infer approximate direction from previous interactions or assume
-        // we can't perfectly know rotation just from 'playerPos' (Vector3).
-        // However, in update() we access 'playerInstance.physics.controls.object.rotation.y'.
-        // We can store that rotation in the class during update().
-        
-        // Use stored rotation or fallback to "towards player" if unknown
-        const playerRotY = this.head.rotation.y; // We set this in update()
-
-        // Periphery Angle: Player Rotation + Offset
-        // Player looks down -Z at rotY=0?
-        // Let's assume standard Three.js controls logic
-        // Angle to Periphery: +/- 45 degrees (PI/4)
-        const targetAngle = playerRotY + (this.preferredSide * Math.PI / 4);
-        
-        // Distance: Keep about 15 blocks away
-        const targetDist = 15;
-        
-        // Calculate Ideal Position relative to Player
-        // Camera looks towards -Z rotated by Y.
-        // Direction Vector: (-sin(rot), 0, -cos(rot)) usually for Forward
-        const dirX = -Math.sin(targetAngle);
-        const dirZ = -Math.cos(targetAngle);
-        
-        const idealX = playerPos.x + dirX * targetDist;
-        const idealZ = playerPos.z + dirZ * targetDist;
-
-        // Move towards ideal position
-        const dx = idealX - this.mesh.position.x;
-        const dz = idealZ - this.mesh.position.z;
-        const distToIdeal = Math.sqrt(dx*dx + dz*dz);
-        const jumpDist = 1.0 + Math.random() * 1.5;
-
-        // Only move if we are far from ideal spot
-        if (distToIdeal > 2.0) {
-             const moveAngle = Math.atan2(dx, dz);
-             
-             const targetX = this.mesh.position.x + Math.sin(moveAngle) * jumpDist;
-             const targetZ = this.mesh.position.z + Math.cos(moveAngle) * jumpDist;
-             
-             const worldX = Math.floor(targetX);
-             const worldZ = Math.floor(targetZ);
-             const targetY = this.world.getTopY(worldX, worldZ);
-             
-             // Allow climbing up 5 blocks, but dropping down up to 15 blocks
-             // This solves the issue of getting stuck on trees
-             if (targetY > 0 && (targetY - this.mesh.position.y < 5) && (this.mesh.position.y - targetY < 15)) {
-                 this.mesh.position.set(targetX, targetY + 1, targetZ);
-                 this.velocity.set(0, 0, 0);
-             } else {
-                 this.velocity.y = 2.0;
-             }
-        }
     }
   }
 }

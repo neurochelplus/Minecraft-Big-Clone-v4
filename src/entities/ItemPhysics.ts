@@ -1,16 +1,18 @@
 import * as THREE from "three";
-import { World } from "../world/World";
+import type { IWorld } from "../contracts/world";
 import { GRAVITY, ITEM_ENTITY } from "../constants/GameConstants";
 
 export class ItemPhysics {
+  private world: IWorld;
+  private mesh: THREE.Mesh;
   private velocityY: number = 0;
   private isOnGround: boolean = false;
   private groundY: number = 0;
 
-  constructor(
-    private world: World,
-    private mesh: THREE.Mesh,
-  ) {}
+  constructor(world: IWorld, mesh: THREE.Mesh) {
+    this.world = world;
+    this.mesh = mesh;
+  }
 
   public update(time: number, delta: number) {
     if (!this.isOnGround) {

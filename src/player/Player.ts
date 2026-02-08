@@ -2,11 +2,12 @@ import { PlayerPhysics } from "./PlayerPhysics";
 import { PlayerHealth } from "./PlayerHealth";
 import { PlayerCombat } from "./PlayerCombat";
 import { PlayerHand } from "./PlayerHand";
-import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
-import { World } from "../world/World";
+import type { IWorld } from "../contracts/world";
+import type { IControls } from "../contracts/controls";
 import * as THREE from "three";
 import { MathUtils } from "three";
 import { HealthBar } from "../ui/HealthBar";
+import { getSurfaceSpawnPosition } from "../utils/SpawnUtils";
 
 export class Player {
   public physics: PlayerPhysics;
@@ -15,8 +16,8 @@ export class Player {
   public hand: PlayerHand;
 
   constructor(
-    controls: PointerLockControls,
-    world: World,
+    controls: IControls,
+    world: IWorld,
     camera: THREE.PerspectiveCamera,
     scene: THREE.Scene,
     uiCamera: THREE.PerspectiveCamera,
@@ -27,7 +28,6 @@ export class Player {
     damageOverlay: HTMLElement,
     healthBar: HealthBar,
     noiseTexture: THREE.DataTexture,
-    toolTextures: any,
   ) {
     this.physics = new PlayerPhysics(controls, world);
 
@@ -40,6 +40,7 @@ export class Player {
       () => {
         this.physics.setVelocity(new THREE.Vector3(0, 0, 0));
       },
+      () => getSurfaceSpawnPosition(world, 8, 8),
     );
 
     this.combat = new PlayerCombat(
@@ -52,7 +53,7 @@ export class Player {
       crackMesh,
     );
 
-    this.hand = new PlayerHand(uiCamera, noiseTexture, toolTextures);
+    this.hand = new PlayerHand(uiCamera, noiseTexture);
   }
 
   public update(delta: number) {

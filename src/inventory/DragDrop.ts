@@ -1,4 +1,4 @@
-import type { InventorySlot } from "./Inventory";
+import type { InventorySlot } from "../contracts/inventory";
 import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { BLOCK } from "../constants/Blocks";
 import { getBlockColor } from "../utils/BlockColors";

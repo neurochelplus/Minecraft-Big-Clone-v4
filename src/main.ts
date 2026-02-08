@@ -1,6 +1,6 @@
 import { initToolTextures } from "./constants/ToolTextures";
 import { GameInitializer } from "./initialization/GameInitializer";
-import { LoadingScreen } from "./initialization/LoadingScreen";
+import { LoadingScreen } from "./ui/LoadingScreen";
 import { NoiseGenerator } from "./initialization/NoiseGenerator";
 import { AutoSave } from "./ui/AutoSave";
 import { InventoryController } from "./ui/InventoryController";
@@ -61,6 +61,7 @@ async function initializeGame() {
     systems.craftingSystem,
     systems.craftingUI,
     systems.furnaceUI,
+    FurnaceManager.getInstance(),
     systems.isMobile,
   );
 

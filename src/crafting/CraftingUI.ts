@@ -1,14 +1,13 @@
-import { CraftingSystem } from "./CraftingSystem";
-import { Inventory } from "../inventory/Inventory";
-import { InventoryUI } from "../inventory/InventoryUI";
-import { DragDrop } from "../inventory/DragDrop";
+import type { ICrafting } from "../contracts/crafting";
+import type { IInventory } from "../contracts/inventory";
+import type { IInventoryUI, IDragDrop } from "../contracts/ui";
 import { CraftingGridRenderer } from "./CraftingGridRenderer";
 import { CraftingResultRenderer } from "./CraftingResultRenderer";
 import { CraftingSlotHandler } from "./CraftingSlotHandler";
 import { MobileCraftingList } from "./MobileCraftingList";
 
 export class CraftingUI {
-  private craftingSystem: CraftingSystem;
+  private craftingSystem: ICrafting;
   private isMobile: boolean;
 
   private craftingArea: HTMLElement;
@@ -21,10 +20,10 @@ export class CraftingUI {
   private mobileList: MobileCraftingList | null;
 
   constructor(
-    craftingSystem: CraftingSystem,
-    inventory: Inventory,
-    inventoryUI: InventoryUI,
-    dragDrop: DragDrop,
+    craftingSystem: ICrafting,
+    inventory: IInventory,
+    inventoryUI: IInventoryUI,
+    dragDrop: IDragDrop,
     isMobile: boolean,
   ) {
     this.craftingSystem = craftingSystem;

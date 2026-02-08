@@ -1,14 +1,19 @@
 import * as THREE from "three";
 import { PerspectiveCamera } from "three";
-import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
+import type { IControls } from "../contracts/controls";
 import { ATTACK_RANGE, ATTACK_COOLDOWN } from "../constants/GameConstants";
 import { BLOCK } from "../constants/Blocks";
+
+type SelectableObject = THREE.Object3D & {
+  isMesh?: boolean;
+  isItem?: boolean;
+};
 
 export class PlayerCombat {
   private raycaster: THREE.Raycaster;
   private camera: PerspectiveCamera;
   private scene: THREE.Scene;
-  private controls: PointerLockControls;
+  private controls: IControls;
   private lastAttackTime: number = 0;
   private getSelectedSlotItem: () => number;
   private onToolUse?: (amount: number) => void;
@@ -18,7 +23,7 @@ export class PlayerCombat {
   constructor(
     camera: PerspectiveCamera,
     scene: THREE.Scene,
-    controls: PointerLockControls,
+    controls: IControls,
     getSelectedSlotItem: () => number,
     onToolUse?: (amount: number) => void,
     cursorMesh?: THREE.Mesh,
@@ -98,8 +103,8 @@ export class PlayerCombat {
         hit.object !== this.cursorMesh &&
         hit.object !== this.crackMesh &&
         hit.object !== this.controls.object &&
-        (hit.object as any).isMesh &&
-        !(hit.object as any).isItem
+        (hit.object as SelectableObject).isMesh &&
+        !(hit.object as SelectableObject).isItem
       ) {
         // We hit a wall/block before any mob
         return false;

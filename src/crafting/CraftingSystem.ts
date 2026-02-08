@@ -1,11 +1,7 @@
+import type { ICrafting, CraftingSlot } from "../contracts/crafting";
 import { RECIPES } from "./Recipes";
 
-export interface CraftingSlot {
-  id: number;
-  count: number;
-}
-
-export class CraftingSystem {
+export class CraftingSystem implements ICrafting {
   public craftingSlots: CraftingSlot[];
   public craftingResult: CraftingSlot;
   public isCraftingTable: boolean = false;

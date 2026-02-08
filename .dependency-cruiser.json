@@ -1,0 +1,35 @@
+{
+  "forbidden": [
+    {
+      "name": "no-circular",
+      "severity": "warn",
+      "from": {},
+      "to": { "circular": true }
+    },
+    {
+      "name": "contracts-no-src-deps",
+      "severity": "warn",
+      "from": { "path": "^src/contracts" },
+      "to": { "path": "^src/(?!contracts|constants|utils)" }
+    },
+    {
+      "name": "no-core-imports",
+      "severity": "warn",
+      "from": { "path": "^src/(?!core|initialization|main\\.ts)" },
+      "to": { "path": "^src/core" }
+    },
+    {
+      "name": "no-initialization-imports",
+      "severity": "warn",
+      "from": { "path": "^src/(?!initialization|main\\.ts)" },
+      "to": { "path": "^src/initialization" }
+    }
+  ],
+  "options": {
+    "doNotFollow": { "path": "node_modules" },
+    "tsConfig": { "fileName": "tsconfig.json" },
+    "enhancedResolveOptions": {
+      "extensions": [".ts", ".tsx", ".js", ".jsx", ".json"]
+    }
+  }
+}

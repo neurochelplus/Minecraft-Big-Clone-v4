@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
-import { World } from "../world/World";
+import type { IControls } from "../contracts/controls";
+import type { IWorld } from "../contracts/world";
 import {
   GRAVITY,
   JUMP_IMPULSE,
@@ -8,10 +8,11 @@ import {
   PLAYER_HEIGHT,
   PLAYER_EYE_HEIGHT,
 } from "../constants/GameConstants";
+import { getSurfaceSpawnPosition } from "../utils/SpawnUtils";
 
 export class PlayerPhysics {
-  public controls: PointerLockControls;
-  private world: World;
+  public controls: IControls;
+  private world: IWorld;
   private velocity: THREE.Vector3;
 
   // Movement state
@@ -37,7 +38,7 @@ export class PlayerPhysics {
   private invertedControls = false;
   private invertedTimer = 0;
 
-  constructor(controls: PointerLockControls, world: World) {
+  constructor(controls: IControls, world: IWorld) {
     this.controls = controls;
     this.world = world;
     this.velocity = new THREE.Vector3();
@@ -126,7 +127,7 @@ export class PlayerPhysics {
       inputZ = -inputZ;
     }
 
-    // Get Camera Direction (World projected to flat plane)
+    // Get Camera Direction (world projected to flat plane)
     const forward = new THREE.Vector3();
     this.controls.getDirection(forward);
     forward.y = 0;
@@ -135,7 +136,7 @@ export class PlayerPhysics {
     const right = new THREE.Vector3();
     right.crossVectors(forward, new THREE.Vector3(0, 1, 0));
 
-    // Wish Direction (World)
+    // Wish Direction (world)
     const moveDir = new THREE.Vector3()
       .addScaledVector(forward, inputZ)
       .addScaledVector(right, inputX);
@@ -194,7 +195,8 @@ export class PlayerPhysics {
 
     // Fallback for falling out of world
     if (position.y < -50) {
-      position.set(8, 40, 20);
+      const safePos = getSurfaceSpawnPosition(this.world, 8, 20);
+      position.copy(safePos);
       this.velocity.set(0, 0, 0);
     }
   }

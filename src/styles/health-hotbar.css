@@ -2,7 +2,10 @@
 #ui-container {
     position: absolute;
     bottom: 10px;
-    width: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;

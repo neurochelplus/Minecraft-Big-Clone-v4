@@ -1,8 +1,7 @@
-import * as THREE from "three";
-import { Game } from "../core/Game";
+import type { IGameRuntime } from "../contracts/game";
 
 export class MobileControls {
-  private game: Game;
+  private game: IGameRuntime;
   private joystickZone: HTMLElement;
   private joystickStick: HTMLElement;
   private stickStartX: number = 0;
@@ -21,7 +20,7 @@ export class MobileControls {
 
   private placeTouchId: number | null = null;
 
-  constructor(game: Game) {
+  constructor(game: IGameRuntime) {
     this.game = game;
     this.joystickZone = document.getElementById("joystick-zone")!;
     this.joystickStick = document.getElementById("joystick-stick")!;
@@ -322,10 +321,6 @@ export class MobileControls {
         if (this.game.gameState.getPaused()) return;
         if (this.lookTouchId === null) return;
         if (e.cancelable) e.preventDefault();
-
-        const target = e.target as HTMLElement;
-        // Skip check? logic was: if touch started elsewhere, we continue dragging.
-        // But we need to ensure we are tracking the CORRECT touch.
 
         let touch: Touch | undefined;
         for (let i = 0; i < e.changedTouches.length; i++) {

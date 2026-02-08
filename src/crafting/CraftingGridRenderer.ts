@@ -1,12 +1,12 @@
-import { CraftingSystem } from "./CraftingSystem";
+import type { ICrafting } from "../contracts/crafting";
 import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { getBlockColor } from "../utils/BlockColors";
 
 export class CraftingGridRenderer {
-  private craftingSystem: CraftingSystem;
+  private craftingSystem: ICrafting;
   private craftGridContainer: HTMLElement;
 
-  constructor(craftingSystem: CraftingSystem, craftGridContainer: HTMLElement) {
+  constructor(craftingSystem: ICrafting, craftGridContainer: HTMLElement) {
     this.craftingSystem = craftingSystem;
     this.craftGridContainer = craftGridContainer;
   }

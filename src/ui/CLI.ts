@@ -1,16 +1,16 @@
-import { Game } from "../core/Game";
+import type { IGameRuntime } from "../contracts/game";
 import { BLOCK_NAMES, ITEM_MAP } from "../constants/BlockNames";
 import { FeatureToggles } from "../utils/FeatureToggles";
 import { logger } from "../utils/Logger";
 
 export class CLI {
-  private game: Game;
+  private game: IGameRuntime;
   private container: HTMLElement;
   private input: HTMLInputElement;
   public isOpen: boolean = false;
   private enabled: boolean;
 
-  constructor(game: Game) {
+  constructor(game: IGameRuntime) {
     this.game = game;
 
     const toggles = FeatureToggles.getInstance();
@@ -66,10 +66,10 @@ export class CLI {
       this.game.renderer.controls.unlock();
 
       // Clear move flags to stop walking when typing
-      this.game.playerPhysics.moveForward = false;
-      this.game.playerPhysics.moveBackward = false;
-      this.game.playerPhysics.moveLeft = false;
-      this.game.playerPhysics.moveRight = false;
+      this.game.player.physics.moveForward = false;
+      this.game.player.physics.moveBackward = false;
+      this.game.player.physics.moveLeft = false;
+      this.game.player.physics.moveRight = false;
     } else {
       this.isOpen = false;
       this.container.style.display = "none";
@@ -84,7 +84,8 @@ export class CLI {
       // Better: let main.ts or Game handle the locking logic based on state?
       // Or we check Game state here.
 
-      const isInventoryOpen = this.game.inventoryMenu?.style.display === "flex"; // Hacky? InventoryUI should expose this.
+      const inventoryMenu = document.getElementById("inventory-menu");
+      const isInventoryOpen = inventoryMenu?.style.display === "flex"; // Hacky? InventoryUI should expose this.
       // Let's stick to what we know. InventoryUI is in Game.
       // We'll check standard conditions.
 

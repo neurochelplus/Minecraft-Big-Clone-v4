@@ -1,5 +1,5 @@
-import * as THREE from "three";
-import { World } from "../world/World";
+﻿import * as THREE from "three";
+import type { IWorld } from "../contracts/world";
 import { Zombie } from "./Zombie";
 import { WildBoar } from "./WildBoar";
 import { ChunkErrorMob } from "./ChunkErrorMob";
@@ -8,14 +8,14 @@ import { Mob } from "./Mob";
 import { ItemEntity } from "../entities/ItemEntity";
 import { BLOCK } from "../constants/Blocks";
 
-import { Environment } from "../world/Environment";
-import { Player } from "../player/Player";
+import type { IEnvironment } from "../contracts/environment";
+import type { IPlayerInput } from "../contracts/player";
 import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { globalEventBus } from "../modding";
 
 export class MobManager {
   public mobs: Mob[] = [];
-  private world: World;
+  private world: IWorld;
   private scene: THREE.Scene;
   private entities: ItemEntity[];
 
@@ -27,7 +27,7 @@ export class MobManager {
   private chunkErrorActive = false;
   private chunkErrorCooldown = 0; // Seconds until next spawn
 
-  constructor(world: World, scene: THREE.Scene, entities: ItemEntity[]) {
+  constructor(world: IWorld, scene: THREE.Scene, entities: ItemEntity[]) {
     this.world = world;
     this.scene = scene;
     this.entities = entities;
@@ -35,8 +35,8 @@ export class MobManager {
 
   public update(
     delta: number,
-    player: Player | THREE.Vector3,
-    environment: Environment,
+    player: IPlayerInput | THREE.Vector3,
+    environment: IEnvironment,
     onPlayerHit?: (damage: number) => void,
   ) {
     const now = performance.now();
@@ -46,7 +46,7 @@ export class MobManager {
     if (player instanceof THREE.Vector3) {
       playerPos = player;
     } else {
-      playerPos = player.physics.controls.object.position;
+      playerPos = player.physics.controls.object.position as unknown as THREE.Vector3;
     }
 
     // 1. Update existing mobs & check despawn
@@ -169,7 +169,7 @@ export class MobManager {
 
           if (y !== -1) {
               // Check block below is Grass (ID 1)
-              // We need to check block type. World.ts has getBlock(x,y,z).
+              // We need to check block type. world.ts has getBlock(x,y,z).
               // Assuming ID 1 is Grass.
               const blockId = this.world.getBlock(x, y, z);
               if (blockId === 1) { // Only spawn on grass
@@ -181,14 +181,14 @@ export class MobManager {
       }
   }
 
-  private attemptSpawnChunkError(player: Player | THREE.Vector3, playerPos: THREE.Vector3) {
+  private attemptSpawnChunkError(player: IPlayerInput | THREE.Vector3, playerPos: THREE.Vector3) {
       // Determine camera direction
-      let dir = new THREE.Vector3(0, 0, -1);
-      if (player instanceof Player) {
+      const dir = new THREE.Vector3(0, 0, -1);
+      if (!(player instanceof THREE.Vector3)) {
           player.physics.controls.getDirection(dir);
       }
       // If we don't have direction (Player param is just Vector3), pick random
-      if (!(player instanceof Player)) {
+      if (player instanceof THREE.Vector3) {
           dir.set(Math.random()-0.5, 0, Math.random()-0.5).normalize();
       }
 
@@ -237,32 +237,8 @@ export class MobManager {
     return -1;
   }
 
-  private despawnMob(index: number) {
+  public despawnMob(index: number) {
     const mob = this.mobs[index];
-    
-    if (mob instanceof ChunkErrorMob) {
-        this.chunkErrorActive = false;
-        // Respawn timer: 1.5 - 2.5 minutes (90 - 150 seconds)
-        this.chunkErrorCooldown = 90 + Math.random() * 60;
-
-        // Drop Broken Compass
-        if (mob.isDead) {
-             this.entities.push(
-                new ItemEntity(
-                  this.world,
-                  this.scene,
-                  mob.mesh.position.x,
-                  mob.mesh.position.y,
-                  mob.mesh.position.z,
-                  30, // BROKEN_COMPASS
-                  this.world.noiseTexture,
-                  TOOL_TEXTURES[30] ? TOOL_TEXTURES[30].texture : null
-                )
-             );
-        }
-    }
-
-    this.scene.remove(mob.mesh);
     mob.dispose();
     this.mobs.splice(index, 1);
   }

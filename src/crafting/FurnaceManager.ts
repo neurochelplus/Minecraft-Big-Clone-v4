@@ -1,5 +1,6 @@
-import type { InventorySlot } from "../inventory/Inventory";
+﻿import type { InventorySlot } from "../contracts/inventory";
 import { worldDB } from "../utils/DB";
+import type { IStorage } from "../contracts/storage";
 import { SMELTING_RECIPES, FUEL_ITEMS } from "./Recipes";
 import { logger } from "../utils/Logger";
 
@@ -21,6 +22,7 @@ export class FurnaceManager {
   private static instance: FurnaceManager;
   private furnaces: Map<string, FurnaceData> = new Map();
   private dirty: boolean = false;
+  private storage: IStorage = worldDB;
 
   private constructor() {}
 
@@ -70,25 +72,25 @@ export class FurnaceManager {
 
     this.furnaces.delete(key);
     this.dirty = true;
-    worldDB.delete(key, "blockEntities");
+    this.storage.delete(key, "blockEntities");
 
     return drops;
   }
 
   public tick(deltaTime: number) {
-    // deltaTime в секундах - время с последнего кадра
+    // deltaTime РІ СЃРµРєСѓРЅРґР°С… - РІСЂРµРјСЏ СЃ РїРѕСЃР»РµРґРЅРµРіРѕ РєР°РґСЂР°
     this.furnaces.forEach((furnace) => {
       let isBurning = furnace.burnTime > 0;
       let inventoryChanged = false;
 
-      // Уменьшаем время горения топлива
+      // РЈРјРµРЅСЊС€Р°РµРј РІСЂРµРјСЏ РіРѕСЂРµРЅРёСЏ С‚РѕРїР»РёРІР°
       if (isBurning) {
         furnace.burnTime -= deltaTime;
         if (furnace.burnTime < 0) furnace.burnTime = 0;
       }
 
-      // Проверяем, нужно ли сжечь новое топливо
-      // Топливо сжигается только если есть что плавить
+      // РџСЂРѕРІРµСЂСЏРµРј, РЅСѓР¶РЅРѕ Р»Рё СЃР¶РµС‡СЊ РЅРѕРІРѕРµ С‚РѕРїР»РёРІРѕ
+      // РўРѕРїР»РёРІРѕ СЃР¶РёРіР°РµС‚СЃСЏ С‚РѕР»СЊРєРѕ РµСЃР»Рё РµСЃС‚СЊ С‡С‚Рѕ РїР»Р°РІРёС‚СЊ
       if (!isBurning && this.canSmelt(furnace)) {
         const fuelValue = this.getFuelBurnTime(furnace.fuel.id);
         if (fuelValue > 0) {
@@ -100,92 +102,95 @@ export class FurnaceManager {
           inventoryChanged = true;
         }
       } else if (!isBurning && furnace.burnTime <= 0) {
-        // Не горит, нечего плавить или нет топлива
+        // РќРµ РіРѕСЂРёС‚, РЅРµС‡РµРіРѕ РїР»Р°РІРёС‚СЊ РёР»Рё РЅРµС‚ С‚РѕРїР»РёРІР°
       }
 
-      // Логика приготовления
+      // Р›РѕРіРёРєР° РїСЂРёРіРѕС‚РѕРІР»РµРЅРёСЏ
       if (isBurning && this.canSmelt(furnace)) {
         furnace.cookTime += deltaTime;
         if (furnace.cookTime >= furnace.totalCookTime) {
-          this.smelt(furnace); // Завершаем плавку
+          this.smelt(furnace); // Р—Р°РІРµСЂС€Р°РµРј РїР»Р°РІРєСѓ
           inventoryChanged = true;
         }
       } else {
-        // Сбрасываем прогресс приготовления, если печь не горит
+        // РЎР±СЂР°СЃС‹РІР°РµРј РїСЂРѕРіСЂРµСЃСЃ РїСЂРёРіРѕС‚РѕРІР»РµРЅРёСЏ, РµСЃР»Рё РїРµС‡СЊ РЅРµ РіРѕСЂРёС‚
         if (furnace.cookTime > 0) {
           furnace.cookTime = Math.max(0, furnace.cookTime - deltaTime * 2);
-          // inventoryChanged = true; // Только визуальное изменение
+          // inventoryChanged = true; // РўРѕР»СЊРєРѕ РІРёР·СѓР°Р»СЊРЅРѕРµ РёР·РјРµРЅРµРЅРёРµ
         }
       }
 
       if (inventoryChanged) {
-        this.dirty = true; // Помечаем для сохранения
+        this.dirty = true; // РџРѕРјРµС‡Р°РµРј РґР»СЏ СЃРѕС…СЂР°РЅРµРЅРёСЏ
       }
     });
   }
 
-  // Проверяет, можно ли переплавить предмет в печи
+  // РџСЂРѕРІРµСЂСЏРµС‚, РјРѕР¶РЅРѕ Р»Рё РїРµСЂРµРїР»Р°РІРёС‚СЊ РїСЂРµРґРјРµС‚ РІ РїРµС‡Рё
   private canSmelt(furnace: FurnaceData): boolean {
-    if (furnace.input.id === 0) return false; // Нет входного предмета
+    if (furnace.input.id === 0) return false; // РќРµС‚ РІС…РѕРґРЅРѕРіРѕ РїСЂРµРґРјРµС‚Р°
     const result = this.getSmeltingResult(furnace.input.id);
-    if (!result) return false; // Предмет нельзя переплавить
-    if (furnace.output.id === 0) return true; // Выходной слот пуст
-    if (furnace.output.id !== result.id) return false; // Другой предмет в выходе
-    if (furnace.output.count + result.count > 64) return false; // Переполнение стака
+    if (!result) return false; // РџСЂРµРґРјРµС‚ РЅРµР»СЊР·СЏ РїРµСЂРµРїР»Р°РІРёС‚СЊ
+    if (furnace.output.id === 0) return true; // Р’С‹С…РѕРґРЅРѕР№ СЃР»РѕС‚ РїСѓСЃС‚
+    if (furnace.output.id !== result.id) return false; // Р”СЂСѓРіРѕР№ РїСЂРµРґРјРµС‚ РІ РІС‹С…РѕРґРµ
+    if (furnace.output.count + result.count > 64) return false; // РџРµСЂРµРїРѕР»РЅРµРЅРёРµ СЃС‚Р°РєР°
     return true;
   }
 
-  // Выполняет плавку: забирает входной предмет, добавляет результат
+  // Р’С‹РїРѕР»РЅСЏРµС‚ РїР»Р°РІРєСѓ: Р·Р°Р±РёСЂР°РµС‚ РІС…РѕРґРЅРѕР№ РїСЂРµРґРјРµС‚, РґРѕР±Р°РІР»СЏРµС‚ СЂРµСЃСѓР»СЊС‚Р°С‚
   private smelt(furnace: FurnaceData) {
     const result = this.getSmeltingResult(furnace.input.id);
     if (!result) return;
 
-    // Забираем 1 предмет из входа
+    // Р—Р°Р±РёСЂР°РµРј 1 РїСЂРµРґРјРµС‚ РёР· РІС…РѕРґР°
     furnace.input.count--;
     if (furnace.input.count === 0) furnace.input.id = 0;
 
-    // Добавляем результат в выход
+    // Р”РѕР±Р°РІР»СЏРµРј СЂРµР·СѓР»СЊС‚Р°С‚ РІ РІС‹С…РѕРґ
     if (furnace.output.id === 0) {
       furnace.output.id = result.id;
       furnace.output.count = result.count;
     } else {
       furnace.output.count += result.count;
     }
-    furnace.cookTime = 0; // Сбрасываем прогресс
+    furnace.cookTime = 0; // РЎР±СЂР°СЃС‹РІР°РµРј РїСЂРѕРіСЂРµСЃСЃ
   }
 
-  // Получить время горения топлива по ID предмета
-  // Возвращает 0, если предмет не является топливом
+  // РџРѕР»СѓС‡РёС‚СЊ РІСЂРµРјСЏ РіРѕСЂРµРЅРёСЏ С‚РѕРїР»РёРІР° РїРѕ ID РїСЂРµРґРјРµС‚Р°
+  // Р’РѕР·РІСЂР°С‰Р°РµС‚ 0, РµСЃР»Рё РїСЂРµРґРјРµС‚ РЅРµ СЏРІР»СЏРµС‚СЃСЏ С‚РѕРїР»РёРІРѕРј
   private getFuelBurnTime(id: number): number {
     const fuel = FUEL_ITEMS.find((f) => f.id === id);
     return fuel ? fuel.burnTime : 0;
   }
 
-  // Получить результат плавки для входного предмета
-  // Возвращает null, если предмет нельзя переплавить
+  // РџРѕР»СѓС‡РёС‚СЊ СЂРµР·СѓР»СЊС‚Р°С‚ РїР»Р°РІРєРё РґР»СЏ РІС…РѕРґРЅРѕРіРѕ РїСЂРµРґРјРµС‚Р°
+  // Р’РѕР·РІСЂР°С‰Р°РµС‚ null, РµСЃР»Рё РїСЂРµРґРјРµС‚ РЅРµР»СЊР·СЏ РїРµСЂРµРїР»Р°РІРёС‚СЊ
   private getSmeltingResult(id: number): { id: number; count: number } | null {
     const recipe = SMELTING_RECIPES.find((r) => r.input === id);
     return recipe ? recipe.output : null;
   }
 
-  // Сохранение всех печей в IndexedDB
+  // РЎРѕС…СЂР°РЅРµРЅРёРµ РІСЃРµС… РїРµС‡РµР№ РІ IndexedDB
   public async save() {
-    if (!this.dirty) return; // Нет изменений - не сохраняем
+    if (!this.dirty) return; // РќРµС‚ РёР·РјРµРЅРµРЅРёР№ - РЅРµ СЃРѕС…СЂР°РЅСЏРµРј
     const promises: Promise<void>[] = [];
     this.furnaces.forEach((data, key) => {
-      promises.push(worldDB.set(key, data, "blockEntities"));
+      promises.push(this.storage.set(key, data, "blockEntities"));
     });
     await Promise.all(promises);
     this.dirty = false;
   }
 
-  // Загрузка всех печей из IndexedDB при старте игры
+  // Р—Р°РіСЂСѓР·РєР° РІСЃРµС… РїС‡РµР№ РёР· IndexedDB РїСЂРё СЃС‚Р°СЂС‚Рµ РёРіСЂС‹
   public async load() {
     try {
-      await worldDB.init(); // Убеждаемся, что БД открыта
-      const keys = await worldDB.keys("blockEntities");
+      await this.storage.init(); // РЈР±РµР¶РґР°РµРјСЃСЏ, С‡С‚Рѕ Р‘Р” РѕС‚РєСЂС‹С‚Р°
+      const keys = await this.storage.keys("blockEntities");
       for (const key of keys) {
-        const data = await worldDB.get(key as string, "blockEntities");
+        const data = await this.storage.get<FurnaceData>(
+          key as string,
+          "blockEntities",
+        );
         if (data) {
           this.furnaces.set(key as string, data);
         }

@@ -1,0 +1,40 @@
+import { BLOCK } from "../../constants/Blocks";
+import { TOOL_DEFS } from "../../constants/ToolTextures";
+
+export type ToolDef = {
+  pattern: string[];
+  color: string;
+};
+
+const TOOL_DEF_BY_BLOCK = new Map<number, ToolDef>([
+  [BLOCK.WOODEN_SWORD, TOOL_DEFS.WOODEN_SWORD],
+  [BLOCK.STONE_SWORD, TOOL_DEFS.STONE_SWORD],
+  [BLOCK.WOODEN_PICKAXE, TOOL_DEFS.WOODEN_PICKAXE],
+  [BLOCK.STONE_PICKAXE, TOOL_DEFS.STONE_PICKAXE],
+  [BLOCK.WOODEN_AXE, TOOL_DEFS.WOODEN_AXE],
+  [BLOCK.STONE_AXE, TOOL_DEFS.STONE_AXE],
+  [BLOCK.WOODEN_SHOVEL, TOOL_DEFS.WOODEN_SHOVEL],
+  [BLOCK.STONE_SHOVEL, TOOL_DEFS.STONE_SHOVEL],
+  [BLOCK.IRON_SWORD, TOOL_DEFS.IRON_SWORD],
+  [BLOCK.IRON_PICKAXE, TOOL_DEFS.IRON_PICKAXE],
+  [BLOCK.IRON_AXE, TOOL_DEFS.IRON_AXE],
+  [BLOCK.IRON_SHOVEL, TOOL_DEFS.IRON_SHOVEL],
+  [BLOCK.STICK, TOOL_DEFS.STICK],
+  [BLOCK.BROKEN_COMPASS, TOOL_DEFS.BROKEN_COMPASS],
+  [BLOCK.COAL, TOOL_DEFS.COAL],
+  [BLOCK.IRON_INGOT, TOOL_DEFS.IRON_INGOT],
+  [BLOCK.RAW_MEAT, TOOL_DEFS.RAW_MEAT],
+  [BLOCK.COOKED_MEAT, TOOL_DEFS.COOKED_MEAT],
+]);
+
+export function getToolDefForBlock(id: number): ToolDef | null {
+  return TOOL_DEF_BY_BLOCK.get(id) ?? null;
+}
+
+export function isSwordBlock(id: number): boolean {
+  return (
+    id === BLOCK.WOODEN_SWORD ||
+    id === BLOCK.STONE_SWORD ||
+    id === BLOCK.IRON_SWORD
+  );
+}
