@@ -160,40 +160,70 @@ export class WildBoar extends Mob {
 
     switch (this.state) {
       case MobState.IDLE:
-        this.velocity.x = 0;
-        this.velocity.z = 0;
         this.eatTimer += delta;
         if (this.eatTimer > 5) {
           this.eatTimer = 0;
         }
+
         if (distToPlayer < this.detectionRadius) {
           this.state = MobState.ALERT;
-          this.alertTimer = 2.0;
+          this.alertTimer = 1.5;
+          this.velocity.x = 0;
+          this.velocity.z = 0;
+        } else {
+          super.updateAI(delta, playerPos, onAttack, isDay);
+        }
+        break;
+
+      case MobState.WANDER:
+        if (distToPlayer < this.detectionRadius) {
+          this.state = MobState.ALERT;
+          this.alertTimer = 1.5;
+          this.velocity.x = 0;
+          this.velocity.z = 0;
+        } else {
+          super.updateAI(delta, playerPos, onAttack, isDay);
         }
         break;
 
       case MobState.ALERT:
         this.velocity.x = 0;
         this.velocity.z = 0;
+
+        if (playerPos) {
+          const dx = playerPos.x - this.mesh.position.x;
+          const dz = playerPos.z - this.mesh.position.z;
+          const targetAngle = Math.atan2(dx, dz);
+          let angleDiff = targetAngle - this.mesh.rotation.y;
+          while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+          while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+          this.mesh.rotation.y += angleDiff * Math.min(delta * 6, 1);
+        }
+
         this.alertTimer -= delta;
-        if (this.alertTimer <= 0) {
-          this.state = MobState.FLEE;
-          this.fleeTimer = 3 + Math.random() * 3;
+        // Boar only flees after taking damage; approach should only alert.
+        if (this.alertTimer <= 0 || distToPlayer > this.detectionRadius * 1.5) {
+          this.state = MobState.IDLE;
         }
         break;
 
       case MobState.FLEE: {
+        this.fleeTimer -= delta;
+
         if (distToPlayer < this.detectionRadius) {
           const dir = this.mesh.position.clone().sub(playerPos as THREE.Vector3).normalize();
           this.velocity.x = dir.x * this.runSpeed;
           this.velocity.z = dir.z * this.runSpeed;
+          this.mesh.rotation.y = Math.atan2(dir.x, dir.z);
         } else {
-          this.fleeTimer -= delta;
-          if (this.fleeTimer <= 0 || distToPlayer > 20) {
-            this.state = MobState.IDLE;
-            this.velocity.x = 0;
-            this.velocity.z = 0;
-          }
+          this.velocity.x = Math.sin(this.mesh.rotation.y) * this.runSpeed;
+          this.velocity.z = Math.cos(this.mesh.rotation.y) * this.runSpeed;
+        }
+
+        if (this.fleeTimer <= 0 || distToPlayer > 20) {
+          this.state = MobState.IDLE;
+          this.velocity.x = 0;
+          this.velocity.z = 0;
         }
         break;
       }
@@ -202,5 +232,46 @@ export class WildBoar extends Mob {
         super.updateAI(delta, playerPos, onAttack, isDay);
         break;
     }
+
+    this.updateAnimationAndFacing();
+  }
+
+  public takeDamage(amount: number, attackerPos: THREE.Vector3 | null): void {
+    super.takeDamage(amount, attackerPos);
+
+    if (!this.isDead) {
+      this.state = MobState.FLEE;
+      this.fleeTimer = 4.0;
+      this.alertTimer = 0;
+    }
+  }
+
+  private updateAnimationAndFacing(): void {
+    const horizontalSpeedSq =
+      this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z;
+
+    if (horizontalSpeedSq > 0.0001) {
+      this.mesh.rotation.y = Math.atan2(this.velocity.x, this.velocity.z);
+    }
+
+    if (horizontalSpeedSq > 0.02) {
+      const time = performance.now() * 0.001;
+      const isRunning = this.state === MobState.FLEE;
+      const cycle = time * (isRunning ? 14 : 8);
+      const swing = isRunning ? 0.8 : 0.4;
+
+      this.legFLGroup.rotation.x = Math.sin(cycle) * swing;
+      this.legFRGroup.rotation.x = Math.cos(cycle) * swing;
+      this.legBLGroup.rotation.x = Math.cos(cycle) * swing;
+      this.legBRGroup.rotation.x = Math.sin(cycle) * swing;
+      this.body.rotation.x = isRunning ? -0.08 : 0;
+      return;
+    }
+
+    this.legFLGroup.rotation.x = 0;
+    this.legFRGroup.rotation.x = 0;
+    this.legBLGroup.rotation.x = 0;
+    this.legBRGroup.rotation.x = 0;
+    this.body.rotation.x = 0;
   }
 }

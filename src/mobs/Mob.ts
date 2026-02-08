@@ -72,6 +72,20 @@ export class Mob {
     for (let i = 0; i < count; i++) colors.push(...colorRGB);
     geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
+    const uvAttr = geo.getAttribute("uv") as THREE.BufferAttribute | undefined;
+    const image = texture.image as { width?: number; height?: number } | undefined;
+    const texWidth = typeof image?.width === "number" ? image.width : 0;
+    const texHeight = typeof image?.height === "number" ? image.height : 0;
+
+    // Mob meshes use slot 0 from the horizontal atlas; keep UVs within that slot.
+    if (uvAttr && texWidth > texHeight && texHeight > 0) {
+      const uScale = texHeight / texWidth;
+      for (let i = 0; i < uvAttr.count; i++) {
+        uvAttr.setX(i, uvAttr.getX(i) * uScale);
+      }
+      uvAttr.needsUpdate = true;
+    }
+
     const mat = new THREE.MeshStandardMaterial({
       map: texture,
       vertexColors: true,
@@ -286,6 +300,7 @@ export class Mob {
   }
 
   public dispose() {
+    this.scene.remove(this.mesh);
     this.mesh.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.geometry.dispose();

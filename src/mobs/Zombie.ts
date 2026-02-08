@@ -79,6 +79,9 @@ export class Zombie extends Mob {
 
     this.rightArm = this.createBox(0.2, 0.7, 0.2, skinColor, -0.35, texture);
     this.rightArmGroup.add(this.rightArm);
+
+    this.leftArmGroup.rotation.x = -Math.PI / 2;
+    this.rightArmGroup.rotation.x = -Math.PI / 2;
   }
 
   protected updateAI(
@@ -112,6 +115,7 @@ export class Zombie extends Mob {
         // If no shelter found, behave like normal mob
         super.updateAI(delta, playerPos, onAttack, isDay);
       }
+      this.updateAnimationAndFacing();
       return;
     }
 
@@ -141,6 +145,8 @@ export class Zombie extends Mob {
     } else {
       super.updateAI(delta, playerPos, onAttack, isDay);
     }
+
+    this.updateAnimationAndFacing();
   }
 
   private findShelter(): THREE.Vector3 | null {
@@ -158,5 +164,32 @@ export class Zombie extends Mob {
       }
     }
     return null;
+  }
+
+  private updateAnimationAndFacing(): void {
+    const horizontalSpeedSq =
+      this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z;
+    const time = performance.now() * 0.001;
+
+    if (horizontalSpeedSq > 0.0001) {
+      this.mesh.rotation.y = Math.atan2(this.velocity.x, this.velocity.z);
+    }
+
+    if (horizontalSpeedSq > 0.02) {
+      const cycle = time * 10;
+      const legSwing = Math.sin(cycle) * 0.5;
+
+      this.leftLegGroup.rotation.x = legSwing;
+      this.rightLegGroup.rotation.x = -legSwing;
+      this.leftArmGroup.rotation.x = -Math.PI / 2 - legSwing * 0.35;
+      this.rightArmGroup.rotation.x = -Math.PI / 2 + legSwing * 0.35;
+      return;
+    }
+
+    this.leftLegGroup.rotation.x = 0;
+    this.rightLegGroup.rotation.x = 0;
+    this.leftArmGroup.rotation.x = -Math.PI / 2 + Math.sin(time * 2) * 0.05;
+    this.rightArmGroup.rotation.x =
+      -Math.PI / 2 + Math.sin(time * 2 + 1) * 0.05;
   }
 }
