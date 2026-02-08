@@ -10,6 +10,14 @@ export type Vec3 = {
 
 export type NoiseTexture = DataTexture;
 
+export type WorldSummary = {
+  id: string;
+  name: string;
+  seed: number;
+  createdAt: number;
+  lastPlayedAt: number;
+};
+
 export interface IWorldRead {
   readonly noiseTexture: NoiseTexture;
   getBlock(x: number, y: number, z: number): number;
@@ -35,12 +43,20 @@ export interface IWorldRuntime {
 }
 
 export interface IWorldPersistence {
-  loadWorld(): Promise<{
+  listWorlds(): Promise<WorldSummary[]>;
+  createWorld(input: { name: string; seed?: number }): Promise<WorldSummary>;
+  setActiveWorld(worldId: string): Promise<void>;
+  getActiveWorldId(): Promise<string | null>;
+  loadWorld(worldId?: string): Promise<{
     playerPosition?: Vec3;
     inventory?: InventorySlot[];
+    world: WorldSummary;
   }>;
-  saveWorld(playerData: { position: Vec3; inventory: InventorySlot[] }): Promise<void>;
-  deleteWorld(): Promise<void>;
+  saveWorld(
+    playerData: { position: Vec3; inventory: InventorySlot[] },
+    worldId?: string,
+  ): Promise<void>;
+  deleteWorld(worldId: string): Promise<void>;
 }
 
 export interface IWorld

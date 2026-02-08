@@ -1,8 +1,14 @@
-import type { IGameRuntime } from "../../contracts/game";
 import type { MenusSettings } from "./types";
 
+type SettingsGame = {
+  environment: {
+    setShadowsEnabled(enabled: boolean): void;
+    setCloudsEnabled(enabled: boolean): void;
+  };
+};
+
 export function bindSettingsListeners(
-  game: IGameRuntime,
+  game: SettingsGame,
   settings: MenusSettings,
 ): void {
   settings.cbShadows.addEventListener("change", () => {

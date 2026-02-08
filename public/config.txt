@@ -6,9 +6,6 @@
 # Show FPS counter and rendering stats (useful for performance debugging)
 show_fps=off
 
-# Show Mods button in main menu (allows access to mod management)
-show_mods=off
-
 # Enable command line interface with / key (provides debug commands)
 show_cli=off
 

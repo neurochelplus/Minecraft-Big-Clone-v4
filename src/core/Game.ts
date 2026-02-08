@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import { Renderer } from "./Renderer";
 import { GameState } from "./GameState";
 import { World } from "../world/World";
@@ -18,15 +19,15 @@ import { MobileControls } from "../mobile/MobileControls";
 import { CLI } from "../ui/CLI";
 import { Menus } from "../ui/Menus";
 import { BLOCK } from "../constants/Blocks";
+import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { TOOL_DURABILITY, PICKUP_DISTANCE, ENTITY_VISIBILITY_DISTANCE } from "../constants/GameConstants";
 import { createDevTools, DevTools } from "../utils/DevTools";
 import { createProfiler, PerformanceProfiler } from "../utils/PerformanceProfiler";
-import { modLoader } from "../modding";
 import { AutoSave } from "../ui/AutoSave";
+import { SaveCoordinator } from "../ui/SaveCoordinator";
 import { KeyboardHandler } from "../input/KeyboardHandler";
 import { MouseHandler } from "../input/MouseHandler";
 import { PointerLockHandler } from "../input/PointerLockHandler";
-import { logger } from "../utils/Logger";
 
 
 
@@ -58,6 +59,7 @@ export class Game {
   public isAttackPressed: boolean = false;
   public isUsePressed: boolean = false;
   public autoSave?: AutoSave;
+  public saveCoordinator?: SaveCoordinator;
   public inputHandlers?: {
     keyboard: KeyboardHandler;
     mouse: MouseHandler;
@@ -120,23 +122,6 @@ export class Game {
     this.devTools = createDevTools();
     this.profiler = createProfiler();
 
-    // Initialize Modding System
-    this.initMods();
-  }
-
-  /**
-   * Инициализация системы модов
-   */
-  private async initMods(): Promise<void> {
-    try {
-      // Передать ссылку на игру в ModLoader
-      modLoader.setGame(this);
-      
-      // Загрузить все моды
-      await modLoader.loadAllMods();
-    } catch (error) {
-      logger.error('[Game] Failed to initialize mods:', error);
-    }
   }
 
   /**
@@ -249,6 +234,91 @@ export class Game {
     }
   };
 
+  public dropSelectedItem(): void {
+    const slotIndex = this.inventory.getSelectedSlot();
+    const slot = this.inventory.getSlot(slotIndex);
+
+    if (slot.id === 0 || slot.count <= 0) {
+      return;
+    }
+    const droppedItemId = slot.id;
+
+    if (slot.count === 1) {
+      this.inventory.setSlot(slotIndex, { id: 0, count: 0 });
+    } else {
+      slot.count -= 1;
+      this.inventory.setSlot(slotIndex, slot);
+    }
+
+    this.dropItem(droppedItemId, 1);
+    this.player.hand.throw();
+
+    this.inventoryUI.refresh();
+    if (this.inventoryUI.onInventoryChange) {
+      this.inventoryUI.onInventoryChange();
+    }
+  }
+
+  public dropItem(id: number, count: number): void {
+    if (id === 0 || count <= 0) {
+      return;
+    }
+
+    const playerPos = this.renderer.controls.object.position;
+    const forward = new THREE.Vector3();
+    this.renderer.camera.getWorldDirection(forward);
+    forward.y = 0;
+    if (forward.lengthSq() === 0) {
+      forward.set(0, 0, -1);
+    } else {
+      forward.normalize();
+    }
+
+    const spawnWorld = new THREE.Vector3(
+      playerPos.x,
+      playerPos.y - 0.65,
+      playerPos.z,
+    ).addScaledVector(forward, 0.45);
+
+    // ItemEntity internally offsets mesh by +0.5 on each axis.
+    const dropX = spawnWorld.x - 0.5;
+    const dropY = spawnWorld.y - 0.5;
+    const dropZ = spawnWorld.z - 0.5;
+
+    const initialVelocity = forward
+      .clone()
+      .multiplyScalar(2.2)
+      .add(new THREE.Vector3(0, 1.8, 0));
+
+    this.entities.push(
+      new ItemEntity(
+        this.world,
+        this.renderer.scene,
+        dropX,
+        dropY,
+        dropZ,
+        id,
+        this.world.noiseTexture,
+        this.getDroppedItemTexture(id),
+        count,
+        {
+          pickupDelayMs: 1500,
+          initialVelocity,
+        },
+      ),
+    );
+  }
+
+  private getDroppedItemTexture(id: number): THREE.CanvasTexture | null {
+    if (
+      TOOL_TEXTURES[id] &&
+      (id >= 20 || id === 8 || id === 12 || id === 13 || id === 14)
+    ) {
+      return id === 14 ? null : TOOL_TEXTURES[id].texture;
+    }
+    return null;
+  }
+
   private update(): void {
     const time = performance.now();
     const delta = (time - this.prevTime) / 1000;
@@ -315,7 +385,7 @@ export class Game {
         continue;
       }
 
-      if (distance < PICKUP_DISTANCE) {
+      if (distance < PICKUP_DISTANCE && entity.canBePickedUp()) {
         // Pickup logic
         const remaining = this.inventory.addItem(entity.type, entity.count);
         entity.count = remaining;

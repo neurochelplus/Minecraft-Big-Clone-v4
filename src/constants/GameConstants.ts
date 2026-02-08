@@ -35,7 +35,7 @@ export const ITEM_ENTITY = {
 };
 
 // Game Loop Constants
-export const PICKUP_DISTANCE = 2.5;
+export const PICKUP_DISTANCE = 1.5;
 export const ENTITY_VISIBILITY_DISTANCE = 40;
 
 // Player Health Constants

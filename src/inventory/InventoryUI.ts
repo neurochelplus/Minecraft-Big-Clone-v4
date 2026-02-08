@@ -14,6 +14,8 @@ export class InventoryUI {
   private tooltip: HTMLElement;
 
   private touchStartSlotIndex: number | null = null;
+  private hoveredSlotIndex: number | null = null;
+  private worldDropHandler: ((id: number, count: number) => void) | null = null;
 
   public onInventoryChange: (() => void) | null = null;
 
@@ -34,6 +36,10 @@ export class InventoryUI {
 
     this.init();
     this.initGlobalListeners();
+  }
+
+  public setWorldDropHandler(handler: (id: number, count: number) => void): void {
+    this.worldDropHandler = handler;
   }
 
   private init() {
@@ -92,7 +98,8 @@ export class InventoryUI {
   private handleMouseEnter(e: Event) {
     const index = this.getSlotIndex(e.target);
     if (index === null) return;
-    
+
+    this.hoveredSlotIndex = index;
     const slot = this.inventory.getSlot(index);
     if (this.inventoryMenu.style.display !== "none" && slot.id !== 0) {
       this.tooltip.innerText = BLOCK_NAMES[slot.id] || "Block";
@@ -111,6 +118,9 @@ export class InventoryUI {
   private handleMouseLeave(e: Event) {
     const index = this.getSlotIndex(e.target);
     if (index === null) return;
+    if (this.hoveredSlotIndex === index) {
+      this.hoveredSlotIndex = null;
+    }
     this.tooltip.style.display = "none";
   }
 
@@ -146,7 +156,93 @@ export class InventoryUI {
     }
   }
 
+  public dropFromOpenInventoryShortcut(): boolean {
+    if (this.inventoryMenu.style.display === "none") {
+      return false;
+    }
+
+    if (this.dropDraggedItem(1)) {
+      return true;
+    }
+
+    if (this.hoveredSlotIndex !== null && this.dropOneFromSlot(this.hoveredSlotIndex)) {
+      return true;
+    }
+
+    return this.dropOneFromSlot(this.inventory.getSelectedSlot());
+  }
+
+  private applyInventoryChange(): void {
+    this.refresh();
+    if (this.onInventoryChange) this.onInventoryChange();
+  }
+
+  private dropToWorld(id: number, count: number): boolean {
+    if (!this.worldDropHandler || id === 0 || count <= 0) {
+      return false;
+    }
+    this.worldDropHandler(id, count);
+    return true;
+  }
+
+  private dropDraggedItem(requestedCount: number): boolean {
+    const draggedItem = this.dragDrop.getDraggedItem();
+    if (!draggedItem || draggedItem.id === 0 || draggedItem.count <= 0) {
+      return false;
+    }
+
+    const dropCount = Math.min(Math.max(requestedCount, 1), draggedItem.count);
+    if (!this.dropToWorld(draggedItem.id, dropCount)) {
+      return false;
+    }
+
+    const remaining = draggedItem.count - dropCount;
+    if (remaining <= 0) {
+      this.dragDrop.setDraggedItem(null);
+    } else {
+      this.dragDrop.setDraggedItem({ ...draggedItem, count: remaining });
+    }
+
+    this.applyInventoryChange();
+    return true;
+  }
+
+  private dropOneFromSlot(index: number): boolean {
+    const slot = this.inventory.getSlot(index);
+    if (slot.id === 0 || slot.count <= 0) {
+      return false;
+    }
+
+    if (!this.dropToWorld(slot.id, 1)) {
+      return false;
+    }
+
+    if (slot.count === 1) {
+      this.inventory.setSlot(index, { id: 0, count: 0 });
+    } else {
+      this.inventory.setSlot(index, { ...slot, count: slot.count - 1 });
+    }
+
+    this.applyInventoryChange();
+    return true;
+  }
+
   private initGlobalListeners() {
+    window.addEventListener("mouseup", (e) => {
+      if (this.inventoryMenu.style.display === "none") return;
+      const draggedItem = this.dragDrop.getDraggedItem();
+      if (!draggedItem) return;
+
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      const slotEl = target?.closest(".slot");
+
+      // Slot clicks are handled on mousedown by slot handlers.
+      if (slotEl) return;
+
+      const dropCount = e.button === 2 ? 1 : draggedItem.count;
+      this.dropDraggedItem(dropCount);
+    });
+
     // Handle dropping items via touch
     window.addEventListener("touchend", (e) => {
       const draggedItem = this.dragDrop.getDraggedItem();
@@ -222,8 +318,11 @@ export class InventoryUI {
               this.handleSlotClick(targetIndex);
             }
           }
-        } else if (this.touchStartSlotIndex !== null) {
-          // Return to start if we know where we came from
+        } else if (
+          !this.dropDraggedItem(draggedItem.count) &&
+          this.touchStartSlotIndex !== null
+        ) {
+          // Fallback: if world-drop handler is not ready, return the item.
           this.handleSlotClick(this.touchStartSlotIndex);
         }
 

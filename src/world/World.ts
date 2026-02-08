@@ -1,81 +1,190 @@
 import * as THREE from "three";
-import { worldDB } from "../utils/DB";
-import { BLOCK } from "../constants/Blocks";
 import { ChunkManager } from "./chunks/ChunkManager";
 import { logger } from "../utils/Logger";
 import type { SerializedInventory } from "../types/Inventory";
+import type { WorldSummary } from "../contracts/world";
+import { getBreakTime } from "./gameplay/breakTime";
+import { WorldRepository } from "./persistence/WorldRepository";
+import { WORLD_SCHEMA_VERSION } from "./persistence/types";
+import { clampSeed, nextWorldName } from "./persistence/worldNaming";
+import { preGenerateAround as runPreGenerateAround } from "./runtime/pregeneration";
+
+type FurnaceWorldAware = {
+  setWorldId(worldId: string): void;
+};
 
 export class World {
   private chunkManager: ChunkManager;
+  private activeWorldId: string | null = null;
+  private furnaceManager?: FurnaceWorldAware;
+  private repository: WorldRepository;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, furnaceManager?: FurnaceWorldAware) {
     this.chunkManager = new ChunkManager(scene);
+    this.furnaceManager = furnaceManager;
+    this.repository = new WorldRepository();
   }
 
   public get noiseTexture(): THREE.DataTexture {
     return this.chunkManager.getNoiseTexture();
   }
 
-  // Persistence
-  public async loadWorld(): Promise<{
+  public async listWorlds(): Promise<WorldSummary[]> {
+    return this.repository.listWorlds();
+  }
+
+  public async createWorld(input: { name: string; seed?: number }): Promise<WorldSummary> {
+    const worlds = await this.repository.readWorldIndex();
+    const now = Date.now();
+    const name = input.name.trim() || nextWorldName(worlds);
+    const seed = clampSeed(input.seed);
+
+    const world: WorldSummary = {
+      id: crypto.randomUUID(),
+      name,
+      seed,
+      createdAt: now,
+      lastPlayedAt: now,
+    };
+
+    worlds.push(world);
+    await this.repository.writeWorldIndex(worlds);
+
+    logger.info(`Created world ${world.id} (${world.name}) seed=${world.seed}`);
+    return world;
+  }
+
+  public async getActiveWorldId(): Promise<string | null> {
+    if (this.activeWorldId !== null) {
+      return this.activeWorldId;
+    }
+
+    this.activeWorldId = await this.repository.getActiveWorldId();
+    return this.activeWorldId;
+  }
+
+  public async setActiveWorld(worldId: string): Promise<void> {
+    const world = await this.repository.findWorldById(worldId);
+    if (!world) {
+      throw new Error(`World ${worldId} not found`);
+    }
+
+    if (this.chunkManager.getWorldId() !== world.id) {
+      await this.chunkManager.switchWorld(world.id, world.seed);
+    } else {
+      this.chunkManager.setSeed(world.seed);
+    }
+
+    this.furnaceManager?.setWorldId(world.id);
+
+    this.activeWorldId = world.id;
+    await this.repository.setActiveWorldId(world.id);
+    await this.repository.updateLastPlayed(world.id, Date.now());
+  }
+
+  public async loadWorld(worldId?: string): Promise<{
     playerPosition?: THREE.Vector3;
     inventory?: SerializedInventory;
+    world: WorldSummary;
   }> {
-    await this.chunkManager.init();
+    const resolvedWorldId = worldId ?? (await this.getActiveWorldId());
+    if (!resolvedWorldId) {
+      throw new Error("No active world selected");
+    }
 
-    const meta = await worldDB.get("player", "meta");
+    await this.setActiveWorld(resolvedWorldId);
+
+    const world = await this.repository.findWorldById(resolvedWorldId);
+    if (!world) {
+      throw new Error(`World ${resolvedWorldId} not found`);
+    }
+
+    const meta = await this.repository.loadPlayerMeta(resolvedWorldId);
 
     if (meta?.seed !== undefined) {
       this.chunkManager.setSeed(meta.seed);
-      logger.debug(`Loaded seed: ${meta.seed}`);
+      logger.debug(`Loaded seed: ${meta.seed} for world ${resolvedWorldId}`);
     } else {
-      logger.debug(`No seed found, using current: ${this.chunkManager.getSeed()}`);
+      logger.debug(
+        `No saved player meta for ${resolvedWorldId}, using world seed ${world.seed}`,
+      );
     }
 
-    return meta
-      ? {
-          playerPosition: new THREE.Vector3(
-            meta.position.x,
-            meta.position.y,
-            meta.position.z,
-          ),
-          inventory: meta.inventory,
-        }
-      : {};
+    if (!meta) {
+      return { world };
+    }
+
+    return {
+      world,
+      playerPosition: new THREE.Vector3(
+        meta.position.x,
+        meta.position.y,
+        meta.position.z,
+      ),
+      inventory: meta.inventory,
+    };
   }
 
-  public async saveWorld(playerData: {
-    position: THREE.Vector3;
-    inventory: SerializedInventory;
-  }) {
-    logger.info("Saving world...");
+  public async saveWorld(
+    playerData: {
+      position: THREE.Vector3;
+      inventory: SerializedInventory;
+    },
+    worldId?: string,
+  ): Promise<void> {
+    const resolvedWorldId = worldId ?? this.activeWorldId;
+    if (!resolvedWorldId) {
+      throw new Error("Cannot save world: no active world");
+    }
 
-    await worldDB.set(
-      "player",
-      {
-        position: {
-          x: playerData.position.x,
-          y: playerData.position.y,
-          z: playerData.position.z,
-        },
-        inventory: playerData.inventory,
-        seed: this.chunkManager.getSeed(),
+    if (this.activeWorldId !== resolvedWorldId) {
+      await this.setActiveWorld(resolvedWorldId);
+    }
+
+    logger.info(`Saving world ${resolvedWorldId}...`);
+
+    await this.repository.savePlayerMeta(resolvedWorldId, {
+      position: {
+        x: playerData.position.x,
+        y: playerData.position.y,
+        z: playerData.position.z,
       },
-      "meta",
-    );
+      inventory: playerData.inventory,
+      seed: this.chunkManager.getSeed(),
+      updatedAt: Date.now(),
+      schemaVersion: WORLD_SCHEMA_VERSION,
+    });
 
     await this.chunkManager.saveDirtyChunks();
-    logger.info("World saved");
+    await this.repository.updateLastPlayed(resolvedWorldId, Date.now());
+    logger.info(`World ${resolvedWorldId} saved`);
   }
 
-  public async deleteWorld() {
-    logger.info("Deleting world...");
-    await worldDB.init();
-    await this.chunkManager.clear();
-    logger.info("World deleted");
+  public async deleteWorld(worldId: string): Promise<void> {
+    logger.info(`Deleting world ${worldId}...`);
+
+    const worlds = await this.repository.readWorldIndex();
+    const remainingWorlds = worlds.filter((world) => world.id !== worldId);
+
+    if (remainingWorlds.length === worlds.length) {
+      return;
+    }
+
+    await this.repository.deleteWorldData(worldId);
+    await this.repository.writeWorldIndex(remainingWorlds);
+
+    const currentActive = await this.getActiveWorldId();
+    if (currentActive === worldId) {
+      const nextActive = remainingWorlds[0]?.id ?? null;
+      this.activeWorldId = nextActive;
+      await this.repository.setActiveWorldId(nextActive);
+      this.chunkManager.clearInMemory();
+      this.furnaceManager?.setWorldId(nextActive ?? "default");
+    }
+
+    logger.info(`World ${worldId} deleted`);
   }
 
-  // Chunk operations
   public update(playerPos: THREE.Vector3) {
     this.chunkManager.update(playerPos);
   }
@@ -96,7 +205,21 @@ export class World {
     return this.chunkManager.isChunkLoaded(x, z);
   }
 
-  // Block operations
+  public async preGenerateAround(
+    spawnX: number,
+    spawnZ: number,
+    radius: number,
+    options?: { budgetMs?: number; onProgress?: (progress: number) => void },
+  ): Promise<void> {
+    await runPreGenerateAround(
+      async (cx: number, cz: number) => this.waitForChunk(cx, cz),
+      spawnX,
+      spawnZ,
+      radius,
+      options,
+    );
+  }
+
   public getBlock(x: number, y: number, z: number): number {
     return this.chunkManager.getBlock(x, y, z);
   }
@@ -117,68 +240,7 @@ export class World {
     return this.chunkManager.getChunkCount();
   }
 
-  // Block breaking times
   public getBreakTime(blockType: number, toolId: number = 0): number {
-    let time = 1000;
-
-    switch (blockType) {
-      case BLOCK.GRASS:
-      case BLOCK.DIRT:
-        if (toolId === BLOCK.IRON_SHOVEL) time = 100;
-        else if (toolId === BLOCK.STONE_SHOVEL) time = 200;
-        else if (toolId === BLOCK.WOODEN_SHOVEL) time = 400;
-        else time = 750;
-        break;
-
-      case BLOCK.STONE:
-      case BLOCK.FURNACE:
-        if (toolId === BLOCK.IRON_PICKAXE) time = 400;
-        else if (toolId === BLOCK.STONE_PICKAXE) time = 600;
-        else if (toolId === BLOCK.WOODEN_PICKAXE) time = 1150;
-        else time = 7500;
-        break;
-
-      case BLOCK.IRON_ORE:
-        if (toolId === BLOCK.IRON_PICKAXE) time = 800;
-        else if (toolId === BLOCK.STONE_PICKAXE) time = 1150;
-        else if (toolId === BLOCK.WOODEN_PICKAXE) time = 7500;
-        else time = 15000;
-        break;
-
-      case BLOCK.COAL_ORE:
-        if (toolId === BLOCK.IRON_PICKAXE) time = 800;
-        else if (toolId === BLOCK.STONE_PICKAXE) time = 1150;
-        else if (toolId === BLOCK.WOODEN_PICKAXE) time = 2250;
-        else time = 15000;
-        break;
-
-      case BLOCK.LEAVES:
-        time = 500;
-        break;
-
-      case BLOCK.WOOD:
-      case BLOCK.PLANKS:
-        let multiplier = 1;
-        if (
-          toolId === BLOCK.WOODEN_AXE ||
-          toolId === BLOCK.STONE_AXE ||
-          toolId === BLOCK.IRON_AXE
-        ) {
-          if (toolId === BLOCK.IRON_AXE) multiplier = 8;
-          else if (toolId === BLOCK.STONE_AXE) multiplier = 4;
-          else multiplier = 2;
-        }
-        time = 3000 / multiplier;
-        break;
-
-      case BLOCK.BEDROCK:
-        return Infinity;
-
-      default:
-        time = 1000;
-        break;
-    }
-
-    return time;
+    return getBreakTime(blockType, toolId);
   }
 }

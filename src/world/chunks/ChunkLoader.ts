@@ -7,10 +7,6 @@ import { ChunkDataManager } from "./ChunkDataManager";
 import { ChunkMeshManager } from "./ChunkMeshManager";
 import type { ChunkMesh } from "./ChunkMeshManager";
 
-/**
- * Фасад для управления загрузкой, генерацией и выгрузкой чанков
- * Координирует работу очереди генерации, данных и мешей
- */
 export class ChunkLoader {
   private chunkSize: number;
   private chunkHeight: number;
@@ -22,11 +18,11 @@ export class ChunkLoader {
   private generationQueue: ChunkGenerationQueue;
   private dataManager: ChunkDataManager;
   private meshManager: ChunkMeshManager;
-  
-  // Batch block updates: накапливаем изменения и применяем раз в N кадров
+
   private pendingMeshRebuilds: Set<string> = new Set();
   private rebuildCounter: number = 0;
-  private readonly REBUILD_INTERVAL: number = 2; // Каждые 2 кадра
+  private readonly REBUILD_INTERVAL: number = 2;
+  private worldId: string = "default";
 
   constructor(
     scene: THREE.Scene,
@@ -59,6 +55,19 @@ export class ChunkLoader {
   }
 
   public async init(): Promise<void> {
+    this.persistence.setWorldId(this.worldId);
+    await this.persistence.init();
+  }
+
+  public getWorldId(): string {
+    return this.worldId;
+  }
+
+  public async switchWorld(worldId: string, seed: number): Promise<void> {
+    this.worldId = worldId;
+    this.persistence.setWorldId(worldId);
+    this.clearInMemory();
+    this.setSeed(seed);
     await this.persistence.init();
   }
 
@@ -75,201 +84,122 @@ export class ChunkLoader {
     return this.meshManager.getNoiseTexture();
   }
 
-  /**
-   * Добавить чанк в очередь загрузки/генерации
-   */
-  public async ensureChunk(cx: number, cz: number, priority: number = 0): Promise<void> {
+  public async ensureChunk(
+    cx: number,
+    cz: number,
+    priority: number = 0,
+  ): Promise<void> {
     const key = `${cx},${cz}`;
 
-    // Уже загружен
     if (this.meshManager.getAllMeshes().has(key)) return;
-
-    // Уже в очереди
     if (this.generationQueue.isPending(cx, cz)) return;
 
-    // Данные есть, но меш не построен
     if (this.dataManager.hasChunkData(key)) {
       const data = this.dataManager.getChunkData(key)!;
-      this.meshManager.buildMesh(
-        cx,
-        cz,
-        data,
-        this.getBlockIndex.bind(this),
-        this.getBlock.bind(this),
-      );
+      this.buildChunkMesh(cx, cz, data);
       return;
     }
 
-    // Добавить в очередь генерации
     this.generationQueue.enqueue(cx, cz, priority);
   }
 
-  /**
-   * Обработать очередь генерации (вызывать каждый кадр)
-   */
   public processGenerationQueue(): void {
     this.generationQueue.process((cx, cz, data) => {
-      const key = `${cx},${cz}`;
-      this.dataManager.setChunkData(key, data, true);
-      this.meshManager.buildMesh(
-        cx,
-        cz,
-        data,
-        this.getBlockIndex.bind(this),
-        this.getBlock.bind(this),
-      );
+      this.processGeneratedChunk(cx, cz, data);
     });
-    
-    // Batch rebuild: обработать накопленные изменения
+
     this.rebuildCounter++;
-    if (this.rebuildCounter >= this.REBUILD_INTERVAL && this.pendingMeshRebuilds.size > 0) {
+    if (
+      this.rebuildCounter >= this.REBUILD_INTERVAL &&
+      this.pendingMeshRebuilds.size > 0
+    ) {
       this.rebuildCounter = 0;
       this.processPendingRebuilds();
     }
   }
-  
-  /**
-   * Обработать накопленные перестройки мешей
-   */
+
   private processPendingRebuilds(): void {
     for (const key of this.pendingMeshRebuilds) {
-      const [cxStr, czStr] = key.split(',');
+      const [cxStr, czStr] = key.split(",");
       const cx = parseInt(cxStr, 10);
       const cz = parseInt(czStr, 10);
-      
+
       const data = this.dataManager.getChunkData(key);
       if (data) {
-        this.meshManager.rebuildMesh(
-          cx,
-          cz,
-          data,
-          this.getBlockIndex.bind(this),
-          this.getBlock.bind(this),
-        );
+        this.rebuildChunkMeshInternal(cx, cz, data);
       }
     }
     this.pendingMeshRebuilds.clear();
   }
 
-  /**
-   * Обновить сортировку чанков для early-z optimization
-   */
   public updateChunkSorting(playerPos: THREE.Vector3): void {
     this.meshManager.updateSorting(playerPos);
   }
 
-  /**
-   * Выгрузить чанк
-   */
   public unloadChunk(key: string): void {
     this.meshManager.unloadMesh(key);
   }
 
-  /**
-   * Перестроить меш чанка
-   */
   public rebuildChunkMesh(cx: number, cz: number): void {
     const key = `${cx},${cz}`;
     const data = this.dataManager.getChunkData(key);
-    this.meshManager.rebuildMesh(
-      cx,
-      cz,
-      data,
-      this.getBlockIndex.bind(this),
-      this.getBlock.bind(this),
-    );
+    this.rebuildChunkMeshInternal(cx, cz, data);
   }
 
-  /**
-   * Получить блок по мировым координатам
-   */
   public getBlock(x: number, y: number, z: number): number {
     return this.dataManager.getBlock(x, y, z);
   }
 
-  /**
-   * Установить блок по мировым координатам
-   * Использует batch updates для уменьшения перестроек мешей
-   */
   public setBlock(x: number, y: number, z: number, type: number): void {
     this.dataManager.setBlock(x, y, z, type);
 
     const cx = Math.floor(x / this.chunkSize);
     const cz = Math.floor(z / this.chunkSize);
 
-    // Добавить в очередь перестройки (batch)
     this.pendingMeshRebuilds.add(`${cx},${cz}`);
 
-    // Добавить соседние чанки если блок на границе
     const localX = x - cx * this.chunkSize;
     const localZ = z - cz * this.chunkSize;
 
     if (localX === 0) this.pendingMeshRebuilds.add(`${cx - 1},${cz}`);
-    if (localX === this.chunkSize - 1) this.pendingMeshRebuilds.add(`${cx + 1},${cz}`);
+    if (localX === this.chunkSize - 1)
+      this.pendingMeshRebuilds.add(`${cx + 1},${cz}`);
     if (localZ === 0) this.pendingMeshRebuilds.add(`${cx},${cz - 1}`);
-    if (localZ === this.chunkSize - 1) this.pendingMeshRebuilds.add(`${cx},${cz + 1}`);
+    if (localZ === this.chunkSize - 1)
+      this.pendingMeshRebuilds.add(`${cx},${cz + 1}`);
   }
 
-  /**
-   * Проверить наличие блока
-   */
   public hasBlock(x: number, y: number, z: number): boolean {
     return this.dataManager.hasBlock(x, y, z);
   }
 
-  /**
-   * Получить верхнюю Y координату
-   */
   public getTopY(worldX: number, worldZ: number): number {
     return this.dataManager.getTopY(worldX, worldZ);
   }
 
-  /**
-   * Проверить загружен ли чанк
-   */
   public isChunkLoaded(x: number, z: number): boolean {
     return this.dataManager.isChunkLoaded(x, z);
   }
 
-  /**
-   * Дождаться загрузки чанка (с синхронной генерацией если нужно)
-   */
   public async waitForChunk(cx: number, cz: number): Promise<void> {
     const key = `${cx},${cz}`;
     if (this.dataManager.hasChunkData(key)) return;
 
-    // Попробовать загрузить из persistence
     const savedData = await this.persistence.loadChunk(key);
     if (savedData) {
       this.dataManager.setChunkData(key, savedData, false);
-      this.meshManager.buildMesh(
-        cx,
-        cz,
-        savedData,
-        this.getBlockIndex.bind(this),
-        this.getBlock.bind(this),
-      );
+      this.buildChunkMesh(cx, cz, savedData);
       return;
     }
 
-    // Синхронная генерация (для спавна игрока)
     this.generationQueue.enqueue(cx, cz, 0);
-    
-    // Принудительно обработать очередь
+
     return new Promise((resolve) => {
       const check = () => {
         this.generationQueue.process((genCx, genCz, data) => {
-          const genKey = `${genCx},${genCz}`;
-          this.dataManager.setChunkData(genKey, data, true);
-          this.meshManager.buildMesh(
-            genCx,
-            genCz,
-            data,
-            this.getBlockIndex.bind(this),
-            this.getBlock.bind(this),
-          );
+          this.processGeneratedChunk(genCx, genCz, data);
         });
-        
+
         if (this.dataManager.hasChunkData(key)) {
           resolve();
         } else {
@@ -280,13 +210,10 @@ export class ChunkLoader {
     });
   }
 
-  /**
-   * Сохранить изменённые чанки
-   */
   public async saveDirtyChunks(): Promise<void> {
     const dirtyChunks = this.dataManager.getDirtyChunks();
     const toSave = new Map<string, Uint8Array>();
-    
+
     for (const key of dirtyChunks) {
       const data = this.dataManager.getChunkData(key);
       if (data) {
@@ -298,38 +225,64 @@ export class ChunkLoader {
     this.dataManager.clearDirtyChunks();
   }
 
-  /**
-   * Очистить все чанки
-   */
-  public async clear(): Promise<void> {
-    await this.persistence.clear();
+  public async clearCurrentWorld(): Promise<void> {
+    await this.persistence.clearWorld(this.worldId);
+    this.clearInMemory();
+  }
 
+  public clearInMemory(): void {
     this.dataManager.clear();
     this.meshManager.clear();
     this.generationQueue.clear();
-
-    this.terrainGen.setSeed(Math.floor(Math.random() * 2147483647));
+    this.pendingMeshRebuilds.clear();
+    this.rebuildCounter = 0;
   }
 
-  /**
-   * Получить все меши чанков
-   */
+  // Backward-compatible alias
+  public async clear(): Promise<void> {
+    await this.clearCurrentWorld();
+  }
+
   public getChunks(): Map<string, ChunkMesh> {
     return this.meshManager.getAllMeshes();
   }
 
-  /**
-   * Получить все данные чанков
-   */
   public getChunksData(): Map<string, Uint8Array> {
     return this.dataManager.getAllChunksData();
   }
 
-  /**
-   * Получить изменённые чанки
-   */
   public getDirtyChunks(): Set<string> {
     return this.dataManager.getDirtyChunks();
+  }
+
+  private processGeneratedChunk(cx: number, cz: number, data: Uint8Array): void {
+    const key = `${cx},${cz}`;
+    this.dataManager.setChunkData(key, data, true);
+    this.buildChunkMesh(cx, cz, data);
+  }
+
+  private buildChunkMesh(cx: number, cz: number, data: Uint8Array): void {
+    this.meshManager.buildMesh(
+      cx,
+      cz,
+      data,
+      this.getBlockIndex.bind(this),
+      this.getBlock.bind(this),
+    );
+  }
+
+  private rebuildChunkMeshInternal(
+    cx: number,
+    cz: number,
+    data: Uint8Array | undefined,
+  ): void {
+    this.meshManager.rebuildMesh(
+      cx,
+      cz,
+      data,
+      this.getBlockIndex.bind(this),
+      this.getBlock.bind(this),
+    );
   }
 
   private getBlockIndex(x: number, y: number, z: number): number {

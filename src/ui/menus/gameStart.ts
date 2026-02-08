@@ -1,127 +1,78 @@
-import { getSurfaceSpawnPosition } from "../../utils/SpawnUtils";
-import { getPerfProfile, getPerfProfileName } from "../../world/perf/PerfProfile";
-import { getStartupPregenBudgetMs, getStartupPregenRadius } from "./pregen";
+import * as THREE from "three";
+import { CHUNK_SIZE } from "../../constants/GameConstants";
+import { FurnaceManager } from "../../crafting/FurnaceManager";
+import { stopAndResetMenuMusic } from "./audio";
 import type { StartGameOptions } from "./types";
 
 export async function startGameFlow(options: StartGameOptions): Promise<void> {
-  const { game, loadSave, dom, menuMusic, worldLoading } = options;
-
-  game.gameState.setPaused(true);
-  game.gameState.setGameStarted(false);
-
-  dom.mainMenu.style.display = "none";
-  dom.pauseMenu.style.display = "none";
-  dom.settingsMenu.style.display = "none";
-  dom.inventoryMenu.style.display = "none";
-  dom.uiContainer.style.display = "none";
-  dom.bgVideo.style.display = "none";
-  dom.crosshair.style.display = "none";
-
-  menuMusic.pause();
-  menuMusic.currentTime = 0;
+  const { game, dom, buttons, state, menuMusic, worldId } = options;
 
   if (!game.renderer.getIsMobile()) {
-    if (game.renderer.controls.isLocked !== true) {
-      document.body.focus();
-      game.renderer.controls.lock();
-    }
+    game.renderer.controls.lock();
   }
 
-  if (dom.mobileUi) {
-    dom.mobileUi.style.display = "none";
-  }
+  buttons.btnPlayWorld.innerText = "Загрузка...";
 
-  worldLoading.startManual();
-  worldLoading.setProgress(0.02);
-
-  if (!loadSave) {
-    await game.world.deleteWorld();
-  }
-
-  const data = await game.world.loadWorld();
-  worldLoading.setProgress(0.2);
-
-  const spawnX = data.playerPosition?.x ?? game.renderer.controls.object.position.x;
-  const spawnZ = data.playerPosition?.z ?? game.renderer.controls.object.position.z;
-
-  if (data.inventory) {
-    game.inventory.deserialize(data.inventory);
-    game.inventoryUI.refresh();
-    if (game.inventoryUI.onInventoryChange) {
-      game.inventoryUI.onInventoryChange();
-    }
-  }
-
-  await game.furnaceManager.load();
-  worldLoading.setProgress(0.3);
-
-  const isMobile = game.renderer.getIsMobile();
-  const perfProfileName = getPerfProfileName();
-  const perfProfile = getPerfProfile();
-  const startupPregenRadius = getStartupPregenRadius(
-    perfProfile.startupPregenRadius,
-    isMobile,
-  );
-  const startupPregenBudgetMs = getStartupPregenBudgetMs(
-    perfProfile.startupPregenBudgetMs,
-    isMobile,
-  );
-
-  await game.world.preGenerateAround(spawnX, spawnZ, startupPregenRadius, {
-    budgetMs: startupPregenBudgetMs,
-    onProgress: (p) => {
-      worldLoading.setProgress(0.3 + p * 0.65);
-    },
-  });
-
-  const safeSpawn = getSurfaceSpawnPosition(game.world, spawnX, spawnZ);
-  game.renderer.controls.object.position.copy(safeSpawn);
-  worldLoading.setProgress(0.98);
-
-  await new Promise<void>((resolve) => worldLoading.finish(resolve));
-
-  dom.uiContainer.style.display = "block";
-  dom.crosshair.style.display = "block";
-  if (game.renderer.getIsMobile() && dom.mobileUi) {
-    dom.mobileUi.style.display = "block";
-  }
-
-  game.resetTime();
-  game.gameState.setPaused(false);
-  game.gameState.setGameStarted(true);
-
-  if (
-    (perfProfileName === "smooth_desktop_v1" ||
-      perfProfileName === "smooth_desktop_v2") &&
-    !isMobile
-  ) {
-    void runBackgroundPregen(
-      game,
-      spawnX,
-      spawnZ,
-      startupPregenRadius,
-      perfProfile.backgroundPregenRadius,
-      perfProfile.backgroundPregenBudgetMs,
-    );
-  }
-}
-
-async function runBackgroundPregen(
-  game: StartGameOptions["game"],
-  spawnX: number,
-  spawnZ: number,
-  startupRadius: number,
-  targetRadius: number,
-  budgetMs: number,
-): Promise<void> {
-  if (targetRadius <= startupRadius || budgetMs <= 0) {
-    return;
-  }
   try {
-    await game.world.preGenerateAround(spawnX, spawnZ, targetRadius, {
-      budgetMs,
-    });
+    const data = await game.world.loadWorld(worldId);
+    await FurnaceManager.getInstance().load();
+
+    if (data.inventory) {
+      game.inventory.deserialize(data.inventory);
+    } else {
+      game.inventory.clear();
+    }
+    game.inventoryUI.refresh();
+
+    if (data.playerPosition) {
+      const cx = Math.floor(data.playerPosition.x / CHUNK_SIZE);
+      const cz = Math.floor(data.playerPosition.z / CHUNK_SIZE);
+      await game.world.waitForChunk(cx, cz);
+
+      const safePos = data.playerPosition.clone();
+      safePos.y += 0.1;
+      game.renderer.controls.object.position.copy(safePos);
+    } else {
+      game.player.health.respawn();
+
+      const spawnX = 8;
+      const spawnZ = 20;
+      const cx = Math.floor(spawnX / CHUNK_SIZE);
+      const cz = Math.floor(spawnZ / CHUNK_SIZE);
+      await game.world.waitForChunk(cx, cz);
+
+      const topY = game.world.getTopY(spawnX, spawnZ);
+      game.renderer.controls.object.position.set(spawnX + 0.5, topY + 3, spawnZ + 0.5);
+    }
+
+    game.player.physics.setVelocity(new THREE.Vector3(0, 0, 0));
+
+    game.gameState.setGameStarted(true);
+    game.gameState.setPaused(false);
+    game.resetTime();
+
+    dom.mainMenu.style.display = "none";
+    dom.singleplayerMenu.style.display = "none";
+    dom.createWorldDialog.style.display = "none";
+    state.isCreateDialogOpen = false;
+    dom.pauseMenu.style.display = "none";
+    dom.settingsMenu.style.display = "none";
+    dom.uiContainer.style.display = "flex";
+    dom.bgVideo.style.display = "none";
+    stopAndResetMenuMusic(menuMusic);
+    dom.crosshair.style.display = "block";
+
+    if (dom.mobileUi && game.renderer.getIsMobile()) {
+      dom.mobileUi.style.display = "block";
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
   } catch (error) {
-    console.warn("Background pregen failed:", error);
+    console.error("Failed to start game", error);
+    alert(`Ошибка запуска игры: ${String(error)}`);
+    if (!game.renderer.getIsMobile()) {
+      game.renderer.controls.unlock();
+    }
+  } finally {
+    buttons.btnPlayWorld.innerText = "Играть";
   }
 }

@@ -4,6 +4,7 @@ import type { IWorld } from "../contracts/world";
 import type { IInventory } from "../contracts/inventory";
 import type { IInventoryUI, IDragDrop, ICraftingUI, IFurnaceUI } from "../contracts/ui";
 import type { ICrafting, IFurnaceManager } from "../contracts/crafting";
+import type { SaveCoordinator } from "./SaveCoordinator";
 
 /**
  * Controls inventory menu opening/closing and related UI state
@@ -20,6 +21,7 @@ export class InventoryController {
     craftingUI: ICraftingUI,
     furnaceUI: IFurnaceUI,
     furnaceManager: IFurnaceManager,
+    saveCoordinator: SaveCoordinator,
     isMobile: boolean,
   ) {
     this.controls = controls;
@@ -32,6 +34,7 @@ export class InventoryController {
     this.craftingUI = craftingUI;
     this.furnaceUI = furnaceUI;
     this.furnaceManager = furnaceManager;
+    this.saveCoordinator = saveCoordinator;
     this.isMobile = isMobile;
   }
 
@@ -45,6 +48,7 @@ export class InventoryController {
   private craftingUI: ICraftingUI;
   private furnaceUI: IFurnaceUI;
   private furnaceManager: IFurnaceManager;
+  private saveCoordinator: SaveCoordinator;
   private isMobile: boolean;
 
   /**
@@ -109,11 +113,7 @@ export class InventoryController {
       }
     } else {
       // Close inventory
-      this.world.saveWorld({
-        position: this.controls.object.position,
-        inventory: this.inventory.serialize(),
-      });
-      this.furnaceManager.save();
+      void this.saveCoordinator.requestSave("inventory-close");
 
       // Return items from crafting grid
       this.craftingSystem.consumeIngredients();

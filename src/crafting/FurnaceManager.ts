@@ -23,6 +23,7 @@ export class FurnaceManager {
   private furnaces: Map<string, FurnaceData> = new Map();
   private dirty: boolean = false;
   private storage: IStorage = worldDB;
+  private worldId: string = "default";
 
   private constructor() {}
 
@@ -31,6 +32,28 @@ export class FurnaceManager {
       FurnaceManager.instance = new FurnaceManager();
     }
     return FurnaceManager.instance;
+  }
+
+  public setWorldId(worldId: string): void {
+    if (this.worldId === worldId) {
+      return;
+    }
+
+    this.worldId = worldId;
+    this.furnaces.clear();
+    this.dirty = false;
+  }
+
+  private getWorldPrefix(worldId: string = this.worldId): string {
+    return `w:${worldId}:f:`;
+  }
+
+  private toStorageKey(localKey: string): string {
+    return `${this.getWorldPrefix()}${localKey}`;
+  }
+
+  private fromStorageKey(storageKey: string): string {
+    return storageKey.slice(this.getWorldPrefix().length);
   }
 
   public getFurnace(x: number, y: number, z: number): FurnaceData | undefined {
@@ -72,7 +95,7 @@ export class FurnaceManager {
 
     this.furnaces.delete(key);
     this.dirty = true;
-    this.storage.delete(key, "blockEntities");
+    void this.storage.delete(this.toStorageKey(key), "blockEntities");
 
     return drops;
   }
@@ -175,7 +198,7 @@ export class FurnaceManager {
     if (!this.dirty) return; // РќРµС‚ РёР·РјРµРЅРµРЅРёР№ - РЅРµ СЃРѕС…СЂР°РЅСЏРµРј
     const promises: Promise<void>[] = [];
     this.furnaces.forEach((data, key) => {
-      promises.push(this.storage.set(key, data, "blockEntities"));
+      promises.push(this.storage.set(this.toStorageKey(key), data, "blockEntities"));
     });
     await Promise.all(promises);
     this.dirty = false;
@@ -185,14 +208,18 @@ export class FurnaceManager {
   public async load() {
     try {
       await this.storage.init(); // РЈР±РµР¶РґР°РµРјСЃСЏ, С‡С‚Рѕ Р‘Р” РѕС‚РєСЂС‹С‚Р°
-      const keys = await this.storage.keys("blockEntities");
+      this.furnaces.clear();
+      const keys = await this.storage.keysByPrefix(
+        "blockEntities",
+        this.getWorldPrefix(),
+      );
       for (const key of keys) {
         const data = await this.storage.get<FurnaceData>(
-          key as string,
+          key,
           "blockEntities",
         );
         if (data) {
-          this.furnaces.set(key as string, data);
+          this.furnaces.set(this.fromStorageKey(key), data);
         }
       }
       logger.debug(`Loaded ${this.furnaces.size} furnaces.`);

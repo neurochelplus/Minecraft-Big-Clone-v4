@@ -7,7 +7,6 @@
 
 interface FeatureToggleConfig {
   show_fps: boolean;
-  show_mods: boolean;
   show_cli: boolean;
   enable_day_night_keys: boolean;
 }
@@ -19,7 +18,6 @@ export class FeatureToggles {
   // Default configuration values
   private static readonly DEFAULT_CONFIG: FeatureToggleConfig = {
     show_fps: import.meta.env.DEV,  // On in dev, off in prod
-    show_mods: true,
     show_cli: true,
     enable_day_night_keys: import.meta.env.DEV,  // On in dev, off in prod
   };
@@ -47,7 +45,6 @@ export class FeatureToggles {
    */
   private initializeDefaults(): void {
     this.config.set('show_fps', FeatureToggles.DEFAULT_CONFIG.show_fps);
-    this.config.set('show_mods', FeatureToggles.DEFAULT_CONFIG.show_mods);
     this.config.set('show_cli', FeatureToggles.DEFAULT_CONFIG.show_cli);
     this.config.set('enable_day_night_keys', FeatureToggles.DEFAULT_CONFIG.enable_day_night_keys);
   }
@@ -93,7 +90,6 @@ export class FeatureToggles {
     // Return default value if missing
     const defaultConfig: Record<string, boolean> = {
       show_fps: FeatureToggles.DEFAULT_CONFIG.show_fps,
-      show_mods: FeatureToggles.DEFAULT_CONFIG.show_mods,
       show_cli: FeatureToggles.DEFAULT_CONFIG.show_cli,
       enable_day_night_keys: FeatureToggles.DEFAULT_CONFIG.enable_day_night_keys,
     };

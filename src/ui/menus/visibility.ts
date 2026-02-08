@@ -1,12 +1,15 @@
-import type { MenusDependencies } from "./types";
+import type { MenusContext } from "./types";
 
-export function showMainMenuView(deps: MenusDependencies): void {
-  const { game, dom } = deps;
+export function showMainMenuView(context: MenusContext): void {
+  const { game, dom, state } = context;
 
   game.gameState.setPaused(true);
   game.gameState.setGameStarted(false);
 
   dom.mainMenu.style.display = "flex";
+  dom.singleplayerMenu.style.display = "none";
+  dom.createWorldDialog.style.display = "none";
+  state.isCreateDialogOpen = false;
   dom.pauseMenu.style.display = "none";
   dom.settingsMenu.style.display = "none";
   dom.inventoryMenu.style.display = "none";
@@ -14,91 +17,75 @@ export function showMainMenuView(deps: MenusDependencies): void {
   dom.bgVideo.style.display = "block";
   dom.crosshair.style.display = "none";
 
-  if (!game.renderer.getIsMobile()) {
-    document.exitPointerLock();
+  if (dom.mobileUi) {
+    dom.mobileUi.style.display = "none";
   }
 
-  if (dom.mobileUi) dom.mobileUi.style.display = "none";
+  game.renderer.controls.unlock();
 }
 
-export function showPauseMenuView(deps: MenusDependencies): void {
-  const { game, dom } = deps;
+export function showSingleplayerView(context: MenusContext): void {
+  const { game, dom, state } = context;
 
-  game.gameState.setPaused(true);
-
-  dom.pauseMenu.style.display = "flex";
-  dom.mainMenu.style.display = "none";
-  dom.settingsMenu.style.display = "none";
-  dom.inventoryMenu.style.display = "none";
-  dom.uiContainer.style.display = "none";
-  dom.bgVideo.style.display = "none";
-  dom.crosshair.style.display = "none";
-
-  if (!game.renderer.getIsMobile()) {
-    document.exitPointerLock();
-  }
-
-  if (dom.mobileUi) dom.mobileUi.style.display = "none";
-}
-
-export function showSettingsMenuView(
-  deps: MenusDependencies,
-  parent: HTMLElement,
-): void {
-  const { game, dom, btnSettingsMain } = deps;
-
-  dom.settingsMenu.style.display = "flex";
   dom.mainMenu.style.display = "none";
   dom.pauseMenu.style.display = "none";
+  dom.settingsMenu.style.display = "none";
+  dom.singleplayerMenu.style.display = "flex";
+  dom.createWorldDialog.style.display = "none";
+  state.isCreateDialogOpen = false;
   dom.inventoryMenu.style.display = "none";
   dom.uiContainer.style.display = "none";
-  dom.bgVideo.style.display = "none";
+  dom.bgVideo.style.display = "block";
   dom.crosshair.style.display = "none";
 
-  if (!game.renderer.getIsMobile()) {
-    document.exitPointerLock();
+  if (dom.mobileUi) {
+    dom.mobileUi.style.display = "none";
   }
 
-  if (parent === dom.mainMenu) {
-    btnSettingsMain.style.display = "none";
-  } else {
-    btnSettingsMain.style.display = "block";
-  }
+  game.renderer.controls.unlock();
 }
 
-export function hideSettingsMenuView(deps: MenusDependencies): void {
-  const { game, dom } = deps;
+export function showPauseMenuView(context: MenusContext): void {
+  const { game, dom, state } = context;
 
+  game.gameState.setPaused(true);
+  dom.pauseMenu.style.display = "flex";
+  dom.mainMenu.style.display = "none";
+  dom.singleplayerMenu.style.display = "none";
+  dom.createWorldDialog.style.display = "none";
+  state.isCreateDialogOpen = false;
   dom.settingsMenu.style.display = "none";
-  dom.bgVideo.style.display = "none";
-
-  if (!game.renderer.getIsMobile()) {
-    document.exitPointerLock();
-  }
-
-  if (game.gameState.getGameStarted()) {
-    dom.pauseMenu.style.display = "flex";
-  } else {
-    dom.mainMenu.style.display = "flex";
-    dom.bgVideo.style.display = "block";
-  }
+  dom.crosshair.style.display = "none";
+  game.renderer.controls.unlock();
 }
 
-export function hidePauseMenuView(deps: MenusDependencies): void {
-  const { game, dom } = deps;
+export function hidePauseMenuView(context: MenusContext): void {
+  const { game, dom } = context;
 
   game.gameState.setPaused(false);
   dom.pauseMenu.style.display = "none";
-  dom.bgVideo.style.display = "none";
-  dom.inventoryMenu.style.display = "none";
-  dom.uiContainer.style.display = "block";
+  dom.settingsMenu.style.display = "none";
   dom.crosshair.style.display = "block";
+  game.resetTime();
+}
 
-  if (game.gameState.getGameStarted()) {
-    if (!game.renderer.getIsMobile()) {
-      game.renderer.controls.lock();
-    } else if (dom.mobileUi) {
-      dom.mobileUi.style.display = "block";
-    }
+export function showSettingsMenuView(
+  context: MenusContext,
+  fromMenu: HTMLElement,
+): void {
+  const { game, dom } = context;
+  game.gameState.setPreviousMenu(fromMenu);
+  fromMenu.style.display = "none";
+  dom.settingsMenu.style.display = "flex";
+}
+
+export function hideSettingsMenuView(context: MenusContext): void {
+  const { dom, game } = context;
+  dom.settingsMenu.style.display = "none";
+  const previous = game.gameState.getPreviousMenu();
+  if (previous) {
+    previous.style.display = "flex";
+  } else {
+    showMainMenuView(context);
   }
 }

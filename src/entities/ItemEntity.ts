@@ -5,11 +5,17 @@ import { ItemLifecycle } from "./ItemLifecycle";
 import { ItemRenderer } from "./ItemRenderer";
 import { ITEM_ENTITY } from "../constants/GameConstants";
 
+export interface ItemSpawnOptions {
+  pickupDelayMs?: number;
+  initialVelocity?: THREE.Vector3;
+}
+
 export class ItemEntity {
   public mesh: THREE.Mesh;
   public type: number;
   public count: number;
   public isDead = false;
+  private pickupAllowedAt: number;
 
   private scene: THREE.Scene;
   private physics: ItemPhysics;
@@ -26,11 +32,15 @@ export class ItemEntity {
     blockTexture: THREE.DataTexture,
     itemTexture: THREE.CanvasTexture | null = null,
     count: number = 1,
+    options: ItemSpawnOptions = {},
   ) {
+    const { pickupDelayMs = 0, initialVelocity = new THREE.Vector3() } = options;
+
     this.type = type;
     this.count = count;
     this.scene = scene;
     this.timeOffset = Math.random() * 100;
+    this.pickupAllowedAt = performance.now() + Math.max(0, pickupDelayMs);
 
     // Create mesh
     this.mesh = ItemRenderer.createMesh(type, blockTexture, itemTexture);
@@ -38,7 +48,7 @@ export class ItemEntity {
     this.mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
 
     // Initialize modules
-    this.physics = new ItemPhysics(world, this.mesh);
+    this.physics = new ItemPhysics(world, this.mesh, initialVelocity);
     this.lifecycle = new ItemLifecycle(this.mesh);
 
     this.scene.add(this.mesh);
@@ -63,5 +73,9 @@ export class ItemEntity {
     this.scene.remove(this.mesh);
     this.mesh.geometry.dispose();
     (this.mesh.material as THREE.Material).dispose();
+  }
+
+  public canBePickedUp(): boolean {
+    return performance.now() >= this.pickupAllowedAt;
   }
 }

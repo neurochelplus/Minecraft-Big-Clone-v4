@@ -1,9 +1,9 @@
-import type { IGameRuntime } from "../../contracts/game";
-import type { IStorage } from "../../contracts/storage";
-import type { LoadingScreen } from "../LoadingScreen";
+import type { Game } from "../../core/Game";
+import type { WorldSummary } from "../../contracts/world";
 
 export type MenusDomElements = {
   mainMenu: HTMLElement;
+  singleplayerMenu: HTMLElement;
   pauseMenu: HTMLElement;
   settingsMenu: HTMLElement;
   inventoryMenu: HTMLElement;
@@ -11,16 +11,27 @@ export type MenusDomElements = {
   mobileUi: HTMLElement | null;
   bgVideo: HTMLVideoElement;
   crosshair: HTMLElement;
+  worldList: HTMLElement;
+  worldEmptyHint: HTMLElement;
+  createWorldDialog: HTMLElement;
+  createWorldNameInput: HTMLInputElement;
+  createWorldSeedInput: HTMLInputElement;
 };
 
 export type MenusButtons = {
-  btnNewGame: HTMLElement;
-  btnContinue: HTMLButtonElement;
-  btnResume: HTMLElement;
-  btnExit: HTMLElement;
-  btnSettingsMain: HTMLElement;
-  btnSettingsPause: HTMLElement;
-  btnBackSettings: HTMLElement;
+  btnNewGame: HTMLButtonElement;
+  btnPlayWorld: HTMLButtonElement;
+  btnCreateWorld: HTMLButtonElement;
+  btnDeleteWorld: HTMLButtonElement;
+  btnBackSingleplayer: HTMLButtonElement;
+  btnMultiplayer: HTMLButtonElement;
+  btnResume: HTMLButtonElement;
+  btnExit: HTMLButtonElement;
+  btnSettingsMain: HTMLButtonElement;
+  btnSettingsPause: HTMLButtonElement;
+  btnBackSettings: HTMLButtonElement;
+  btnCreateWorldConfirm: HTMLButtonElement;
+  btnCreateWorldCancel: HTMLButtonElement;
 };
 
 export type MenusSettings = {
@@ -28,17 +39,30 @@ export type MenusSettings = {
   cbClouds: HTMLInputElement;
 };
 
-export type StartGameOptions = {
-  game: IGameRuntime;
-  loadSave: boolean;
-  dom: MenusDomElements;
-  menuMusic: HTMLAudioElement;
-  worldLoading: LoadingScreen;
+export type MenusState = {
+  resumeTimeout: number | null;
+  worldOperationInProgress: boolean;
+  hasWorlds: boolean;
+  storageErrorNotified: boolean;
+  worldsCache: WorldSummary[];
+  selectedWorldId: string | null;
+  isCreateDialogOpen: boolean;
 };
 
-export type MenusDependencies = {
-  game: IGameRuntime;
-  storage: IStorage;
+export type MenusContext = {
+  game: Game;
   dom: MenusDomElements;
-  btnSettingsMain: HTMLElement;
+  buttons: MenusButtons;
+  settings: MenusSettings;
+  state: MenusState;
+  menuMusic: HTMLAudioElement;
+};
+
+export type StartGameOptions = {
+  game: Game;
+  dom: MenusDomElements;
+  buttons: MenusButtons;
+  state: MenusState;
+  menuMusic: HTMLAudioElement;
+  worldId: string;
 };
