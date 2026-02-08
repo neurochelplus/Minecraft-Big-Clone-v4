@@ -44,6 +44,7 @@ async function initializeGame() {
     systems.craftingSystem,
     systems.craftingUI,
     systems.furnaceUI,
+    systems.furnaceManager,
   );
 
   // Set game reference for callbacks

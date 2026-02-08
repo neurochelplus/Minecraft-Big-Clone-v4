@@ -9,6 +9,8 @@ interface FeatureToggleConfig {
   show_fps: boolean;
   show_cli: boolean;
   enable_day_night_keys: boolean;
+  // Legacy key name kept for compatibility; controls biomes_v3 availability.
+  world_biomes_v1: boolean;
 }
 
 export class FeatureToggles {
@@ -20,6 +22,7 @@ export class FeatureToggles {
     show_fps: import.meta.env.DEV,  // On in dev, off in prod
     show_cli: true,
     enable_day_night_keys: import.meta.env.DEV,  // On in dev, off in prod
+    world_biomes_v1: false,
   };
 
   /**
@@ -47,6 +50,7 @@ export class FeatureToggles {
     this.config.set('show_fps', FeatureToggles.DEFAULT_CONFIG.show_fps);
     this.config.set('show_cli', FeatureToggles.DEFAULT_CONFIG.show_cli);
     this.config.set('enable_day_night_keys', FeatureToggles.DEFAULT_CONFIG.enable_day_night_keys);
+    this.config.set('world_biomes_v1', FeatureToggles.DEFAULT_CONFIG.world_biomes_v1);
   }
 
   /**
@@ -92,6 +96,7 @@ export class FeatureToggles {
       show_fps: FeatureToggles.DEFAULT_CONFIG.show_fps,
       show_cli: FeatureToggles.DEFAULT_CONFIG.show_cli,
       enable_day_night_keys: FeatureToggles.DEFAULT_CONFIG.enable_day_night_keys,
+      world_biomes_v1: FeatureToggles.DEFAULT_CONFIG.world_biomes_v1,
     };
     return defaultConfig[key] ?? false;
   }

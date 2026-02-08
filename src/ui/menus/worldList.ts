@@ -1,4 +1,5 @@
 import type { WorldSummary } from "../../contracts/world";
+import { getWorldPresetLabel } from "../../world/generation/WorldGenPresets";
 
 type RenderWorldListOptions = {
   worldList: HTMLElement;
@@ -35,7 +36,8 @@ export function renderWorldList(options: RenderWorldListOptions): void {
 
     const meta = document.createElement("span");
     meta.className = "world-row__meta";
-    meta.textContent = `сид ${world.seed}`;
+    const presetLabel = getWorldPresetLabel(world.worldGen?.presetId);
+    meta.textContent = `сид ${world.seed} | ${presetLabel}`;
 
     row.append(name, meta);
 

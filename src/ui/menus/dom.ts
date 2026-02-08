@@ -24,6 +24,7 @@ export function getMenusDomElements(): MenusDomElements {
     createWorldDialog: getRequiredElement("create-world-dialog"),
     createWorldNameInput: getRequiredElement<HTMLInputElement>("create-world-name"),
     createWorldSeedInput: getRequiredElement<HTMLInputElement>("create-world-seed"),
+    createWorldPresetSelect: getRequiredElement<HTMLSelectElement>("create-world-preset"),
   };
 }
 

@@ -25,6 +25,11 @@ import {
   updateSingleplayerActionState,
 } from "./menus/index";
 import type { MenusContext, MenusState } from "./menus/index";
+import { FeatureToggles } from "../utils/FeatureToggles";
+import {
+  WORLD_GEN_PRESET_BIOMES_V3,
+  WORLD_GEN_PRESET_LEGACY,
+} from "../world/generation/WorldGenPresets";
 
 export class Menus {
   private game: Game;
@@ -108,6 +113,16 @@ export class Menus {
     dom.createWorldDialog.style.display = "flex";
     dom.createWorldNameInput.value = "";
     dom.createWorldSeedInput.value = "";
+    const biomesEnabled = FeatureToggles.getInstance().isEnabled("world_biomes_v1");
+    const v3Option = dom.createWorldPresetSelect.querySelector<HTMLOptionElement>(
+      `option[value="${WORLD_GEN_PRESET_BIOMES_V3}"]`,
+    );
+    if (v3Option) {
+      v3Option.disabled = !biomesEnabled;
+    }
+    dom.createWorldPresetSelect.value = biomesEnabled
+      ? WORLD_GEN_PRESET_BIOMES_V3
+      : WORLD_GEN_PRESET_LEGACY;
     setCreateDialogControlsDisabled(this.context, false);
     updateSingleplayerActionState(this.context);
     dom.createWorldNameInput.focus();

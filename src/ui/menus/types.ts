@@ -16,6 +16,7 @@ export type MenusDomElements = {
   createWorldDialog: HTMLElement;
   createWorldNameInput: HTMLInputElement;
   createWorldSeedInput: HTMLInputElement;
+  createWorldPresetSelect: HTMLSelectElement;
 };
 
 export type MenusButtons = {

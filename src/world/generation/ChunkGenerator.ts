@@ -10,6 +10,10 @@ export type ChunkGeneratorOptions = {
   terrainGen?: TerrainGenerator;
 };
 
+/**
+ * @deprecated Legacy generation pipeline used only in legacy tests/benchmarks.
+ * Runtime world generation uses `generation/runtime/GenerateChunk.ts`.
+ */
 export class ChunkGenerator implements IChunkSource {
   private seed: number;
   private chunkSize: number;

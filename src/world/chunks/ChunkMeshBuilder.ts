@@ -3,6 +3,15 @@ import { BLOCK } from "../../constants/Blocks";
 import { TextureAtlas } from "../generation/TextureAtlas";
 import { FurnaceManager } from "../../crafting/FurnaceManager";
 import { BlockColors } from "../../constants/BlockColors";
+import type { BiomeId } from "../generation/runtime/BiomeRegistry";
+import { getBiomeTintForBlock } from "../generation/runtime/BiomeVisuals";
+import {
+  getBlockTextureSlot,
+  getUVRangeForSlot,
+  type BlockFace,
+} from "../generation/TextureSlots";
+
+export type BiomeAtLookup = (worldX: number, worldZ: number) => BiomeId;
 
 export class ChunkMeshBuilder {
   private noiseTexture: THREE.DataTexture;
@@ -45,6 +54,7 @@ export class ChunkMeshBuilder {
     chunkHeight: number,
     _getBlockIndex: (x: number, y: number, z: number) => number,
     getNeighborBlock: (x: number, y: number, z: number) => number,
+    getBiomeAtForTint?: BiomeAtLookup,
   ): THREE.Mesh {
     // Переиспользуем массивы из пула (очищаем вместо создания новых)
     this.positionsPool.length = 0;
@@ -59,6 +69,7 @@ export class ChunkMeshBuilder {
 
     const startX = cx * chunkSize;
     const startZ = cz * chunkSize;
+    const biomeColumnCache = getBiomeAtForTint ? new Map<number, BiomeId>() : null;
 
     // Предвычислить границы Y с блоками (пропустить пустые слои)
     let minY = chunkHeight;
@@ -128,22 +139,106 @@ export class ChunkMeshBuilder {
 
           // Добавляем только видимые грани
           if (topTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "top", startX, startZ);
+            this.addFace(
+              positions,
+              normals,
+              uvs,
+              colors,
+              x,
+              y,
+              z,
+              type,
+              "top",
+              startX,
+              startZ,
+              getBiomeAtForTint,
+              biomeColumnCache,
+            );
           }
           if (bottomTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "bottom", startX, startZ);
+            this.addFace(
+              positions,
+              normals,
+              uvs,
+              colors,
+              x,
+              y,
+              z,
+              type,
+              "bottom",
+              startX,
+              startZ,
+              getBiomeAtForTint,
+              biomeColumnCache,
+            );
           }
           if (frontTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "front", startX, startZ);
+            this.addFace(
+              positions,
+              normals,
+              uvs,
+              colors,
+              x,
+              y,
+              z,
+              type,
+              "front",
+              startX,
+              startZ,
+              getBiomeAtForTint,
+              biomeColumnCache,
+            );
           }
           if (backTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "back", startX, startZ);
+            this.addFace(
+              positions,
+              normals,
+              uvs,
+              colors,
+              x,
+              y,
+              z,
+              type,
+              "back",
+              startX,
+              startZ,
+              getBiomeAtForTint,
+              biomeColumnCache,
+            );
           }
           if (rightTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "right", startX, startZ);
+            this.addFace(
+              positions,
+              normals,
+              uvs,
+              colors,
+              x,
+              y,
+              z,
+              type,
+              "right",
+              startX,
+              startZ,
+              getBiomeAtForTint,
+              biomeColumnCache,
+            );
           }
           if (leftTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "left", startX, startZ);
+            this.addFace(
+              positions,
+              normals,
+              uvs,
+              colors,
+              x,
+              y,
+              z,
+              type,
+              "left",
+              startX,
+              startZ,
+              getBiomeAtForTint,
+              biomeColumnCache,
+            );
           }
         }
       }
@@ -168,6 +263,8 @@ export class ChunkMeshBuilder {
     side: string,
     startX: number,
     startZ: number,
+    getBiomeAtForTint?: BiomeAtLookup,
+    biomeColumnCache?: Map<number, BiomeId> | null,
   ) {
     const x0 = x;
     const x1 = x + 1;
@@ -202,7 +299,16 @@ export class ChunkMeshBuilder {
     uvs.push(u0, 0, u1, 0, u0, 1, u1, 1);
 
     // Add colors
-    const { r, g, b } = this.getBlockColor(type, side);
+    const worldX = startX + x;
+    const worldZ = startZ + z;
+    const { r, g, b } = this.getBlockColor(
+      type,
+      side,
+      worldX,
+      worldZ,
+      getBiomeAtForTint,
+      biomeColumnCache,
+    );
     for (let i = 0; i < 4; i++) {
       colors.push(r, g, b);
     }
@@ -216,42 +322,46 @@ export class ChunkMeshBuilder {
     worldZ: number,
   ): { u0: number; u1: number } {
     const uvStep = TextureAtlas.getUVStep();
-    const uvInset = 0.001;
-    let slot = 0;
+    const slot = getBlockTextureSlot(type, side as BlockFace, {
+      worldX,
+      worldY,
+      worldZ,
+      getFurnaceRotation: (x, y, z) =>
+        FurnaceManager.getInstance().getFurnace(x, y, z)?.rotation,
+    });
+    return getUVRangeForSlot(slot, uvStep);
+  }
 
-    if (type === BLOCK.LEAVES) slot = 1;
-    else if (type === BLOCK.PLANKS) slot = 2;
-    else if (type === BLOCK.CRAFTING_TABLE) {
-      if (side === "top") slot = 3;
-      else if (side === "bottom") slot = 5;
-      else slot = 4;
-    } else if (type === BLOCK.COAL_ORE) slot = 6;
-    else if (type === BLOCK.IRON_ORE) slot = 7;
-    else if (type === BLOCK.FURNACE) {
-      if (side === "top") slot = 10;
-      else if (side === "bottom") slot = 9;
-      else {
-        const furnace = FurnaceManager.getInstance().getFurnace(worldX, worldY, worldZ);
-        const rot = furnace?.rotation ?? 0;
+  private getBlockColor(
+    type: number,
+    side: string,
+    worldX: number,
+    worldZ: number,
+    getBiomeAtForTint?: BiomeAtLookup,
+    biomeColumnCache?: Map<number, BiomeId> | null,
+  ): { r: number; g: number; b: number } {
+    const base = BlockColors.getColorForFace(type, side);
+    if (!getBiomeAtForTint || !biomeColumnCache) {
+      return base;
+    }
 
-        let frontFace = "front";
-        if (rot === 0) frontFace = "back";
-        else if (rot === 1) frontFace = "right";
-        else if (rot === 2) frontFace = "front";
-        else if (rot === 3) frontFace = "left";
+    const key = ((worldX & 0xffff) << 16) | (worldZ & 0xffff);
+    let biomeId = biomeColumnCache.get(key);
+    if (!biomeId) {
+      biomeId = getBiomeAtForTint(worldX, worldZ);
+      biomeColumnCache.set(key, biomeId);
+    }
 
-        slot = side === frontFace ? 8 : 9;
-      }
+    const tint = getBiomeTintForBlock(biomeId, type);
+    if (!tint) {
+      return base;
     }
 
     return {
-      u0: uvStep * slot + uvInset,
-      u1: uvStep * (slot + 1) - uvInset,
+      r: Math.min(1, base.r * tint.r),
+      g: Math.min(1, base.g * tint.g),
+      b: Math.min(1, base.b * tint.b),
     };
-  }
-
-  private getBlockColor(type: number, side: string): { r: number; g: number; b: number } {
-    return BlockColors.getColorForFace(type, side);
   }
 
   private createMesh(

@@ -1,11 +1,13 @@
 import { BLOCK } from "../../constants/Blocks";
 import { BlockColors } from "../../constants/BlockColors";
 import type { ChunkMeshData } from "../../contracts/chunks";
-
-const UV_STEP = 1.0 / 12;
-const UV_INSET = 0.001;
-
-export type FurnaceRotationLookup = (x: number, y: number, z: number) => number | undefined;
+import { TextureAtlas } from "../generation/TextureAtlas";
+import {
+  getBlockTextureSlot,
+  getUVRangeForSlot,
+  type BlockFace,
+  type FurnaceRotationLookup,
+} from "../generation/TextureSlots";
 
 export class ChunkMeshDataBuilder {
   private static positionsPool: number[] = [];
@@ -145,33 +147,13 @@ export class ChunkMeshDataBuilder {
     worldZ: number,
     getFurnaceRotation?: FurnaceRotationLookup,
   ): { u0: number; u1: number } {
-    let slot = 0;
-
-    if (type === BLOCK.LEAVES) slot = 1;
-    else if (type === BLOCK.PLANKS) slot = 2;
-    else if (type === BLOCK.CRAFTING_TABLE) {
-      if (side === "top") slot = 3;
-      else if (side === "bottom") slot = 5;
-      else slot = 4;
-    } else if (type === BLOCK.COAL_ORE) slot = 6;
-    else if (type === BLOCK.IRON_ORE) slot = 7;
-    else if (type === BLOCK.FURNACE) {
-      if (side === "top") slot = 10;
-      else if (side === "bottom") slot = 9;
-      else {
-        const rot = getFurnaceRotation?.(worldX, worldY, worldZ) ?? 0;
-        let frontFace = "front";
-        if (rot === 0) frontFace = "back";
-        else if (rot === 1) frontFace = "right";
-        else if (rot === 2) frontFace = "front";
-        else if (rot === 3) frontFace = "left";
-        slot = side === frontFace ? 8 : 9;
-      }
-    }
-
-    return {
-      u0: UV_STEP * slot + UV_INSET,
-      u1: UV_STEP * (slot + 1) - UV_INSET,
-    };
+    const uvStep = TextureAtlas.getUVStep();
+    const slot = getBlockTextureSlot(type, side as BlockFace, {
+      worldX,
+      worldY,
+      worldZ,
+      getFurnaceRotation,
+    });
+    return getUVRangeForSlot(slot, uvStep);
   }
 }

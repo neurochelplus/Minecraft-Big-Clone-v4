@@ -2,7 +2,11 @@ import * as THREE from "three";
 import { ITEM_ENTITY } from "../constants/GameConstants";
 import { BlockColors } from "../constants/BlockColors";
 import { TextureAtlas } from "../world/generation/TextureAtlas";
-import { BLOCK } from "../constants/Blocks";
+import {
+  getBlockTextureSlot,
+  getFaceFromBoxGeometryFaceIndex,
+  getUVRangeForSlot,
+} from "../world/generation/TextureSlots";
 
 export class ItemRenderer {
   public static createMesh(
@@ -79,41 +83,20 @@ export class ItemRenderer {
     if (!uvAttr) return;
 
     const uvStep = TextureAtlas.getUVStep();
-    const uvInset = 0.001;
 
     for (let face = 0; face < 6; face++) {
-      const texIdx = this.getTextureIndex(type, face);
-      const min = texIdx * uvStep + uvInset;
-      const max = (texIdx + 1) * uvStep - uvInset;
+      const side = getFaceFromBoxGeometryFaceIndex(face);
+      const texIdx = getBlockTextureSlot(type, side);
+      const { u0, u1 } = getUVRangeForSlot(texIdx, uvStep);
 
       const offset = face * 4;
       for (let i = 0; i < 4; i++) {
         const u = uvAttr.getX(offset + i);
-        uvAttr.setX(offset + i, min + u * (max - min));
+        uvAttr.setX(offset + i, u0 + u * (u1 - u0));
       }
     }
 
     uvAttr.needsUpdate = true;
-  }
-
-  private static getTextureIndex(type: number, face: number): number {
-    // BoxGeometry faces: 0:Right, 1:Left, 2:Top, 3:Bottom, 4:Front, 5:Back
-    if (type === BLOCK.LEAVES) return 1;
-    if (type === BLOCK.PLANKS) return 2;
-    if (type === BLOCK.CRAFTING_TABLE) {
-      if (face === 2) return 3; // Top
-      if (face === 3) return 5; // Bottom
-      return 4; // Side
-    }
-    if (type === BLOCK.COAL_ORE) return 6;
-    if (type === BLOCK.IRON_ORE) return 7;
-    if (type === BLOCK.FURNACE) {
-      if (face === 2) return 10; // Top
-      if (face === 3) return 9; // Bottom
-      if (face === 4) return 8; // Front
-      return 9; // Side
-    }
-    return 0; // Default noise/stone
   }
 
   private static getFaceName(faceIndex: number): string {

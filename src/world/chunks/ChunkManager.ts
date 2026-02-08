@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { ChunkLoader } from "./ChunkLoader";
 import { ChunkVisibility } from "./ChunkVisibility";
 import { logger } from "../../utils/Logger";
+import type { BiomeId } from "../generation/runtime/BiomeRegistry";
+import { WORLD_GEN_PRESET_LEGACY, type WorldGenPresetId } from "../generation/WorldGenPresets";
 
 declare global {
   interface Window {
@@ -26,7 +28,13 @@ export class ChunkManager {
   private lastPlayerChunkZ: number = -Infinity;
 
   constructor(scene: THREE.Scene, seed?: number) {
-    this.loader = new ChunkLoader(scene, this.chunkSize, this.chunkHeight, seed);
+    this.loader = new ChunkLoader(
+      scene,
+      this.chunkSize,
+      this.chunkHeight,
+      seed,
+      WORLD_GEN_PRESET_LEGACY,
+    );
     this.visibility = new ChunkVisibility(this.chunkSize, this.chunkHeight);
   }
 
@@ -48,12 +56,20 @@ export class ChunkManager {
     this.loader.setSeed(seed);
   }
 
+  public setGenerationContext(seed: number, presetId: WorldGenPresetId): void {
+    this.loader.setGenerationContext(seed, presetId);
+  }
+
   public getWorldId(): string {
     return this.loader.getWorldId();
   }
 
-  public async switchWorld(worldId: string, seed: number): Promise<void> {
-    await this.loader.switchWorld(worldId, seed);
+  public async switchWorld(
+    worldId: string,
+    seed: number,
+    presetId: WorldGenPresetId,
+  ): Promise<void> {
+    await this.loader.switchWorld(worldId, seed, presetId);
     this.visibility.clearAll();
     this.resetRuntimeState();
   }
@@ -193,6 +209,10 @@ export class ChunkManager {
 
   public getTopY(worldX: number, worldZ: number): number {
     return this.loader.getTopY(worldX, worldZ);
+  }
+
+  public getBiomeAt(worldX: number, worldZ: number): BiomeId {
+    return this.loader.getBiomeAt(worldX, worldZ);
   }
 
   public async loadChunk(cx: number, cz: number): Promise<void> {

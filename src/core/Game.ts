@@ -14,7 +14,6 @@ import { InventoryUI } from "../inventory/InventoryUI";
 import { CraftingSystem } from "../crafting/CraftingSystem";
 import { CraftingUI } from "../crafting/CraftingUI";
 import { FurnaceUI } from "../crafting/FurnaceUI";
-import { FurnaceManager } from "../crafting/FurnaceManager";
 import { MobileControls } from "../mobile/MobileControls";
 import { CLI } from "../ui/CLI";
 import { Menus } from "../ui/Menus";
@@ -28,6 +27,7 @@ import { SaveCoordinator } from "../ui/SaveCoordinator";
 import { KeyboardHandler } from "../input/KeyboardHandler";
 import { MouseHandler } from "../input/MouseHandler";
 import { PointerLockHandler } from "../input/PointerLockHandler";
+import type { IFurnaceManager } from "../contracts/crafting";
 
 
 
@@ -50,6 +50,7 @@ export class Game {
   public craftingSystem: CraftingSystem;
   public craftingUI: CraftingUI;
   public furnaceUI: FurnaceUI;
+  public furnaceManager: IFurnaceManager;
   public mobileControls: MobileControls | null = null;
   public cli: CLI;
   public menus: Menus;
@@ -85,6 +86,7 @@ export class Game {
     craftingSystem: CraftingSystem,
     craftingUI: CraftingUI,
     furnaceUI: FurnaceUI,
+    furnaceManager: IFurnaceManager,
   ) {
     this.renderer = renderer;
     this.gameState = gameState;
@@ -108,6 +110,7 @@ export class Game {
     this.craftingSystem = craftingSystem;
     this.craftingUI = craftingUI;
     this.furnaceUI = furnaceUI;
+    this.furnaceManager = furnaceManager;
 
     // UI Systems
     this.cli = new CLI(this);
@@ -336,7 +339,7 @@ export class Game {
     this.environment.update(delta, this.renderer.controls.object.position);
     this.profiler?.endMeasure('environment-update');
 
-    FurnaceManager.getInstance().tick(delta);
+    this.furnaceManager.tick(delta);
     if (this.furnaceUI.isVisible()) {
       this.furnaceUI.updateVisuals();
     }

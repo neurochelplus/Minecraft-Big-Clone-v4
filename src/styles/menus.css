@@ -219,7 +219,8 @@
     text-align: left;
 }
 
-.create-world-dialog__content input {
+.create-world-dialog__content input,
+.create-world-dialog__content select {
     width: 100%;
     min-height: 44px;
     box-sizing: border-box;

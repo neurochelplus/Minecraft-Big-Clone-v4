@@ -1,6 +1,10 @@
 import { createNoise2D } from "simplex-noise";
 import { BLOCK } from "../../constants/Blocks";
 
+/**
+ * @deprecated Legacy terrain generator used only by legacy decorators/tests.
+ * Runtime world generation uses `generation/runtime/GenerateChunk.ts`.
+ */
 export class TerrainGenerator {
   private noise2D: (x: number, y: number) => number;
   private seed: number;

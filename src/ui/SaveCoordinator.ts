@@ -14,8 +14,11 @@ export class SaveCoordinator {
   private inFlight = false;
   private pending = false;
   private lastReason: SaveReason | null = null;
+  private saveFn: () => Promise<void>;
 
-  constructor(private saveFn: () => Promise<void>) {}
+  constructor(saveFn: () => Promise<void>) {
+    this.saveFn = saveFn;
+  }
 
   public async requestSave(reason: SaveReason): Promise<void> {
     this.lastReason = reason;

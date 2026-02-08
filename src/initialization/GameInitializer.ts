@@ -60,7 +60,7 @@ export class GameInitializer {
     // Inventory System
     const inventory = new Inventory();
     const dragDrop = new DragDrop();
-    const inventoryUI = new InventoryUI(inventory, dragDrop);
+    const inventoryUI = new InventoryUI(inventory, dragDrop, isMobile);
 
     // Block Cursor
     const blockCursor = new BlockCursor(scene, camera, controls);

@@ -20,6 +20,7 @@ export class ChunkWorkerPool {
   private pendingTasks: Map<number, ChunkTask> = new Map();
   
   private seed: number;
+  private presetId: string;
   private chunkSize: number;
   private chunkHeight: number;
   private poolSize: number;
@@ -27,11 +28,13 @@ export class ChunkWorkerPool {
 
   constructor(
     seed: number,
+    presetId: string,
     chunkSize: number,
     chunkHeight: number,
     poolSize: number = navigator.hardwareConcurrency || 4,
   ) {
     this.seed = seed;
+    this.presetId = presetId;
     this.chunkSize = chunkSize;
     this.chunkHeight = chunkHeight;
     this.poolSize = Math.min(poolSize, 4); // Максимум 4 воркера
@@ -139,6 +142,7 @@ export class ChunkWorkerPool {
       cx: task.cx,
       cz: task.cz,
       seed: this.seed,
+      presetId: this.presetId,
       chunkSize: this.chunkSize,
       chunkHeight: this.chunkHeight,
     });
@@ -149,6 +153,11 @@ export class ChunkWorkerPool {
    */
   public setSeed(seed: number): void {
     this.seed = seed;
+  }
+
+  public setContext(seed: number, presetId: string): void {
+    this.seed = seed;
+    this.presetId = presetId;
   }
 
   /**

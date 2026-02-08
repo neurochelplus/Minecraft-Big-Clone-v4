@@ -2,6 +2,10 @@ import { createNoise2D } from "simplex-noise";
 import type { ChunkData, ChunkGenContext, IChunkDecorator } from "../../../contracts/chunks";
 import { Rng } from "../../../utils/Rng";
 
+/**
+ * @deprecated Legacy decorator for legacy generator benchmarks/tests.
+ * Runtime biome generation uses `generation/runtime/GenerateChunk.ts`.
+ */
 export class BiomeDecorator implements IChunkDecorator {
   private noise2D: (x: number, y: number) => number;
 

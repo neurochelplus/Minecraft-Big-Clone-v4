@@ -4,6 +4,7 @@ import { Scene } from "three";
 import { World } from "../world/World";
 import { BLOCK } from "../constants/Blocks";
 import { Mob } from "../mobs/Mob";
+import type { IControls } from "../contracts/controls";
 import {
   PLAYER_HALF_WIDTH,
   PLAYER_HEIGHT,
@@ -14,7 +15,7 @@ export class BlockInteraction {
   private raycaster: THREE.Raycaster;
   private camera: PerspectiveCamera;
   private scene: Scene;
-  private controls: PointerLockControls;
+  private controls: IControls;
   private cursorMesh?: THREE.Mesh;
   private crackMesh?: THREE.Mesh;
   private readonly MAX_DISTANCE = 6;
@@ -39,7 +40,7 @@ export class BlockInteraction {
   constructor(
     camera: PerspectiveCamera,
     scene: Scene,
-    controls: any,
+    controls: IControls,
     getSelectedSlotItem: () => { id: number; count: number },
     onPlaceBlock?: (
       x: number,

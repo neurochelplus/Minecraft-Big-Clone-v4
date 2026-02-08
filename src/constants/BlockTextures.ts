@@ -1,6 +1,9 @@
 import {
   CT_TOP_PATTERN,
   CT_SIDE_PATTERN,
+  SAND_PATTERN,
+  SNOW_PATTERN,
+  ICE_PATTERN,
   ORE_PATTERN,
   FURNACE_FRONT_PATTERN,
   FURNACE_TOP_PATTERN,
@@ -13,6 +16,12 @@ export const BLOCK_COLORS = {
   IRON_BEIGE: "#E6C8A0", // Beige/Light Orange
   STONE_GREY: "#7D7D7D", // Standard Stone
   FURNACE_DARK: "#404040",
+  SAND_LIGHT: "#E8D59C",
+  SAND_DARK: "#C9B278",
+  SNOW_LIGHT: "#F4F8FF",
+  SNOW_DARK: "#DFE7F3",
+  ICE_LIGHT: "#B3DDF2",
+  ICE_DARK: "#74AFD1",
 };
 
 export interface BlockTextureDef {
@@ -68,6 +77,41 @@ export const BLOCK_DEFS: Record<string, BlockTextureDef> = {
     colors: {
       primary: BLOCK_COLORS.FURNACE_DARK,
       secondary: BLOCK_COLORS.STONE_GREY,
+    },
+  },
+  SAND: {
+    pattern: SAND_PATTERN,
+    colors: {
+      primary: BLOCK_COLORS.SAND_LIGHT,
+      secondary: BLOCK_COLORS.SAND_DARK,
+    },
+  },
+  SANDSTONE: {
+    pattern: CT_SIDE_PATTERN,
+    colors: {
+      primary: BLOCK_COLORS.SAND_LIGHT,
+      secondary: BLOCK_COLORS.SAND_DARK,
+    },
+  },
+  SNOW: {
+    pattern: SNOW_PATTERN,
+    colors: {
+      primary: BLOCK_COLORS.SNOW_LIGHT,
+      secondary: BLOCK_COLORS.SNOW_DARK,
+    },
+  },
+  SNOW_GRASS: {
+    pattern: SNOW_PATTERN,
+    colors: {
+      primary: BLOCK_COLORS.SNOW_LIGHT,
+      secondary: BLOCK_COLORS.SNOW_DARK,
+    },
+  },
+  ICE: {
+    pattern: ICE_PATTERN,
+    colors: {
+      primary: BLOCK_COLORS.ICE_LIGHT,
+      secondary: BLOCK_COLORS.ICE_DARK,
     },
   },
 };

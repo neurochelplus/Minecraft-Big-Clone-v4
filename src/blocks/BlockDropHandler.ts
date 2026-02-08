@@ -12,8 +12,8 @@ export class BlockDropHandler {
     let shouldDrop = true;
     let dropId = blockId;
 
-    if (blockId === BLOCK.STONE) {
-      // Stone: Only drops with Pickaxes
+    if (blockId === BLOCK.STONE || blockId === BLOCK.SANDSTONE) {
+      // Hard stone blocks: only with pickaxes
       if (
         toolId !== BLOCK.WOODEN_PICKAXE &&
         toolId !== BLOCK.STONE_PICKAXE &&
@@ -38,6 +38,14 @@ export class BlockDropHandler {
         dropId = BLOCK.COAL; // Drop Coal item instead of ore
       }
     } else if (blockId === BLOCK.FURNACE) {
+      if (
+        toolId !== BLOCK.WOODEN_PICKAXE &&
+        toolId !== BLOCK.STONE_PICKAXE &&
+        toolId !== BLOCK.IRON_PICKAXE
+      ) {
+        shouldDrop = false;
+      }
+    } else if (blockId === BLOCK.ICE) {
       if (
         toolId !== BLOCK.WOODEN_PICKAXE &&
         toolId !== BLOCK.STONE_PICKAXE &&
